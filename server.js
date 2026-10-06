@@ -17,25 +17,6 @@ const app = express();
 
 connectDB();
 
-const copyFrontendDist = () => {
-  const sourceDir = path.join(__dirname, 'client', 'dist');
-  const targetDir = path.join(__dirname, 'public');
-  
-  if (!fs.existsSync(sourceDir)) {
-    console.log('Frontend dist not found at', sourceDir);
-    return;
-  }
-  
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
-  
-  fs.cpSync(sourceDir, targetDir, { recursive: true });
-  console.log('Frontend dist copied to public/');
-};
-
-copyFrontendDist();
-
 app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false,
@@ -61,22 +42,22 @@ app.get('/health', (req, res) => {
   });
 });
 
-const publicPath = path.join(__dirname, 'public');
+const distPath = path.join(__dirname, 'client', 'dist');
 
-app.use(express.static(publicPath));
+app.use(express.static(distPath));
 
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api')) {
     return next();
   }
-  
-  const indexPath = path.join(publicPath, 'index.html');
-  
+
+  const indexPath = path.join(distPath, 'index.html');
+
   if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
+    res.sendFile(indexPath);
+  } else {
+    next();
   }
-  
-  next();
 });
 
 app.use((req, res) => {
