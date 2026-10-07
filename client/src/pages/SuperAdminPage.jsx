@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import * as adminApi from '../api/adminApi';
+import * as authApi from '../api/authApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -21,21 +21,14 @@ const SuperAdminPage = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [editingAdmin, setEditingAdmin] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [lastTempPassword, setLastTempPassword] = useState(null);
   const [createForm, setCreateForm] = useState({
-    identifier: '',
-    password: '',
     fullName: '',
+    email: '',
     isHiddenAdmin: false,
     accessHash: '',
   });
-  const [editForm, setEditForm] = useState({
-    identifier: '',
-    fullName: '',
-  });
-  const [resetForm, setResetForm] = useState({
-    password: '',
-    confirmPassword: '',
-  });
+  const [editForm, setEditForm] = useState({ email: '', fullName: '' });
 
   useEffect(() => {
     if (!isHiddenAdmin) {
@@ -48,7 +41,7 @@ const SuperAdminPage = () => {
   const fetchAdmins = async () => {
     setLoading(true);
     try {
-      const data = await adminApi.getAdmins();
+      const data = await authApi.getAdmins();
       setAdmins(data);
     } catch (error) {
       toast.error('Failed to load admins');
@@ -57,31 +50,23 @@ const SuperAdminPage = () => {
     }
   };
 
-  const handleCreateAdmin = async (e) => {
+  const handleCreate = async (e) => {
     e.preventDefault();
     setSaving(true);
-
     try {
-      const adminData = {
-        fullName: createForm.fullName,
-        password: createForm.password,
-        isHiddenAdmin: createForm.isHiddenAdmin,
-      };
+      const result = await authApi.createAdmin(createForm);
 
-      if (createForm.identifier.includes('@')) {
-        adminData.email = createForm.identifier;
+      if (result.emailSent) {
+        toast.success('Admin created and credentials emailed');
       } else {
-        adminData.username = createForm.identifier;
+        toast.success('Admin created');
+        if (result.tempPassword) {
+          setLastTempPassword({ email: createForm.email, password: result.tempPassword });
+        }
       }
 
-      if (createForm.isHiddenAdmin) {
-        adminData.accessHash = createForm.accessHash;
-      }
-
-      await adminApi.createAdmin(adminData);
-      toast.success('Admin created successfully');
       setShowCreateModal(false);
-      setCreateForm({ identifier: '', password: '', fullName: '', isHiddenAdmin: false, accessHash: '' });
+      setCreateForm({ fullName: '', email: '', isHiddenAdmin: false, accessHash: '' });
       fetchAdmins();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create admin');
@@ -90,69 +75,62 @@ const SuperAdminPage = () => {
     }
   };
 
-  const handleEditAdmin = async (e) => {
+  const handleEdit = async (e) => {
     e.preventDefault();
     setSaving(true);
-
     try {
-      const adminData = {
-        fullName: editForm.fullName,
-      };
-
-      if (editForm.identifier.includes('@')) {
-        adminData.email = editForm.identifier;
-      } else {
-        adminData.username = editForm.identifier;
-      }
-
-      await adminApi.updateAdmin(editingAdmin._id, adminData);
-      toast.success('Admin updated successfully');
+      await authApi.updateAdmin(editingAdmin._id, editForm);
+      toast.success('Admin updated');
       setShowEditModal(false);
       setEditingAdmin(null);
       fetchAdmins();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update admin');
+      toast.error(error.response?.data?.message || 'Failed to update');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleToggleStatus = async (admin) => {
+  const handleToggle = async (admin) => {
     try {
-      await adminApi.toggleAdminStatus(admin._id);
-      toast.success(`Admin ${admin.isActive ? 'deactivated' : 'activated'} successfully`);
+      await authApi.toggleAdminStatus(admin._id);
+      toast.success(`Admin ${admin.isActive ? 'suspended' : 'activated'}`);
       fetchAdmins();
     } catch (error) {
-      toast.error('Failed to toggle admin status');
+      toast.error('Failed to toggle status');
     }
   };
 
   const handleResetAttempts = async (admin) => {
     try {
-      await adminApi.resetAdminAttempts(admin._id);
-      toast.success('Failed attempts reset successfully');
+      await authApi.resetAdminAttempts(admin._id);
+      toast.success('Attempts reset');
       fetchAdmins();
     } catch (error) {
       toast.error('Failed to reset attempts');
     }
   };
 
-  const handleResetPassword = async (e) => {
-    e.preventDefault();
+  const handleResetPassword = async () => {
+    if (!editingAdmin) return;
     setSaving(true);
-
-    if (resetForm.password !== resetForm.confirmPassword) {
-      toast.error('Passwords do not match');
-      setSaving(false);
-      return;
-    }
-
     try {
-      await adminApi.resetAdminPassword(editingAdmin._id, resetForm.password);
-      toast.success('Password reset successfully');
+      const result = await authApi.resetAdminPassword(editingAdmin._id);
+
+      if (result.emailSent) {
+        toast.success('Password reset and emailed');
+      } else {
+        toast.success('Password reset');
+        if (result.tempPassword) {
+          setLastTempPassword({
+            email: editingAdmin.email || editingAdmin.username,
+            password: result.tempPassword,
+          });
+        }
+      }
+
       setShowResetPasswordModal(false);
       setEditingAdmin(null);
-      setResetForm({ password: '', confirmPassword: '' });
     } catch (error) {
       toast.error('Failed to reset password');
     } finally {
@@ -162,50 +140,38 @@ const SuperAdminPage = () => {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-
     try {
-      await adminApi.deleteAdmin(deleteTarget._id);
-      toast.success('Admin deleted successfully');
+      await authApi.deleteAdmin(deleteTarget._id);
+      toast.success('Admin deleted');
       setDeleteTarget(null);
       fetchAdmins();
     } catch (error) {
-      toast.error('Failed to delete admin');
+      toast.error('Failed to delete');
     }
   };
 
-  if (!isHiddenAdmin) {
-    return null;
-  }
+  if (loading) return <Spinner size="lg" className="py-20" />;
 
-  if (loading) {
-    return <Spinner size="lg" className="py-20" />;
-  }
-
-  const headers = ['Identifier', 'Full Name', 'Type', 'Status', 'Last Login', 'Login Count', 'Failed Attempts', 'Actions'];
+  const headers = ['Identifier', 'Full Name', 'Type', 'Status', 'Last Login', 'Failed Attempts', 'Actions'];
 
   const renderRow = (admin) => (
     <tr key={admin._id}>
       <td className="px-6 py-4 whitespace-nowrap">
-        <span className="font-medium text-gray-900">{admin.username || admin.email}</span>
+        <span className="font-medium text-gray-900">{admin.email || admin.username}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-        {admin.fullName}
-      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-gray-900">{admin.fullName}</td>
       <td className="px-6 py-4 whitespace-nowrap">
         <Badge variant={admin.isHiddenAdmin ? 'danger' : 'primary'}>
-          {admin.isHiddenAdmin ? 'Hidden Admin' : 'Admin'}
+          {admin.isHiddenAdmin ? 'Hidden' : 'Admin'}
         </Badge>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant={admin.isActive ? 'success' : 'danger'}>
-          {admin.isActive ? 'Active' : 'Inactive'}
+        <Badge variant={admin.isActive && admin.status === 'active' ? 'success' : 'warning'}>
+          {admin.status || (admin.isActive ? 'active' : 'inactive')}
         </Badge>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+      <td className="px-6 py-4 whitespace-nowrap text-gray-500 text-sm">
         {admin.lastLogin ? new Date(admin.lastLogin).toLocaleString() : 'Never'}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-        {admin.loginCount || 0}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <Badge variant={admin.failedAttempts > 0 ? 'warning' : 'success'}>
@@ -215,30 +181,18 @@ const SuperAdminPage = () => {
       <td className="px-6 py-4 whitespace-nowrap space-x-2">
         <Button variant="secondary" size="sm" onClick={() => {
           setEditingAdmin(admin);
-          setEditForm({ identifier: admin.username || admin.email, fullName: admin.fullName });
+          setEditForm({ email: admin.email || admin.username, fullName: admin.fullName });
           setShowEditModal(true);
-        }}>
-          Edit
-        </Button>
+        }}>Edit</Button>
         <Button variant="warning" size="sm" onClick={() => {
           setEditingAdmin(admin);
           setShowResetPasswordModal(true);
-        }}>
-          Reset Password
+        }}>Reset PW</Button>
+        <Button variant="secondary" size="sm" onClick={() => handleResetAttempts(admin)}>Reset Att</Button>
+        <Button variant={admin.isActive ? 'warning' : 'success'} size="sm" onClick={() => handleToggle(admin)}>
+          {admin.isActive ? 'Suspend' : 'Activate'}
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => handleResetAttempts(admin)}>
-          Reset Attempts
-        </Button>
-        <Button 
-          variant={admin.isActive ? 'warning' : 'success'} 
-          size="sm" 
-          onClick={() => handleToggleStatus(admin)}
-        >
-          {admin.isActive ? 'Deactivate' : 'Activate'}
-        </Button>
-        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(admin)}>
-          Delete
-        </Button>
+        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(admin)}>Delete</Button>
       </td>
     </tr>
   );
@@ -258,138 +212,64 @@ const SuperAdminPage = () => {
         </Button>
       </div>
 
+      {lastTempPassword && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm font-medium text-yellow-800 mb-2">
+            Email failed to send. Share these credentials manually:
+          </p>
+          <div className="text-sm">
+            <p><strong>Email:</strong> {lastTempPassword.email}</p>
+            <p><strong>Temporary Password:</strong> <code className="bg-yellow-100 px-2 py-1 rounded">{lastTempPassword.password}</code></p>
+          </div>
+          <button onClick={() => setLastTempPassword(null)} className="mt-2 text-xs text-yellow-700 underline">Dismiss</button>
+        </div>
+      )}
+
       <Card>
-        <Table
-          headers={headers}
-          data={admins}
-          renderRow={renderRow}
-          emptyMessage="No admins found"
-        />
+        <Table headers={headers} data={admins} renderRow={renderRow} emptyMessage="No admins" />
       </Card>
 
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="Create Admin"
-      >
-        <form onSubmit={handleCreateAdmin} className="space-y-4">
-          <Input
-            label="Username or Email"
-            placeholder="Enter username or email"
-            value={createForm.identifier}
-            onChange={(e) => setCreateForm({ ...createForm, identifier: e.target.value })}
-            required
-          />
-          <Input
-            label="Password"
-            type="password"
-            placeholder="Enter password"
-            value={createForm.password}
-            onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-            required
-          />
-          <Input
-            label="Full Name"
-            placeholder="Enter full name"
-            value={createForm.fullName}
-            onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
-            required
-          />
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create Admin">
+        <form onSubmit={handleCreate} className="space-y-4">
+          <Input label="Full Name" value={createForm.fullName} onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })} required />
+          <Input label="Email" type="email" value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} required />
           <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              id="isHiddenAdmin"
-              checked={createForm.isHiddenAdmin}
-              onChange={(e) => setCreateForm({ ...createForm, isHiddenAdmin: e.target.checked })}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="isHiddenAdmin" className="text-sm font-medium text-gray-700">
-              Hidden Admin
-            </label>
+            <input type="checkbox" id="isHiddenAdmin" checked={createForm.isHiddenAdmin} onChange={(e) => setCreateForm({ ...createForm, isHiddenAdmin: e.target.checked })} className="h-4 w-4 rounded border-gray-300" />
+            <label htmlFor="isHiddenAdmin" className="text-sm text-gray-700">Hidden Admin</label>
           </div>
           {createForm.isHiddenAdmin && (
-            <Input
-              label="Access Hash"
-              type="password"
-              placeholder="Enter access hash"
-              value={createForm.accessHash}
-              onChange={(e) => setCreateForm({ ...createForm, accessHash: e.target.value })}
-              required
-            />
+            <Input label="Access Hash" type="password" value={createForm.accessHash} onChange={(e) => setCreateForm({ ...createForm, accessHash: e.target.value })} required />
           )}
+          <p className="text-xs text-gray-500">A temporary password will be generated and emailed to the admin.</p>
           <div className="flex justify-end space-x-3">
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={saving}>
-              Create
-            </Button>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
+            <Button type="submit" isLoading={saving}>Create Admin</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title="Edit Admin"
-      >
-        <form onSubmit={handleEditAdmin} className="space-y-4">
-          <Input
-            label="Username or Email"
-            placeholder="Enter username or email"
-            value={editForm.identifier}
-            onChange={(e) => setEditForm({ ...editForm, identifier: e.target.value })}
-            required
-          />
-          <Input
-            label="Full Name"
-            placeholder="Enter full name"
-            value={editForm.fullName}
-            onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })}
-            required
-          />
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Admin">
+        <form onSubmit={handleEdit} className="space-y-4">
+          <Input label="Email" type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} required />
+          <Input label="Full Name" value={editForm.fullName} onChange={(e) => setEditForm({ ...editForm, fullName: e.target.value })} required />
           <div className="flex justify-end space-x-3">
-            <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={saving}>
-              Update
-            </Button>
+            <Button variant="secondary" onClick={() => setShowEditModal(false)}>Cancel</Button>
+            <Button type="submit" isLoading={saving}>Update</Button>
           </div>
         </form>
       </Modal>
 
-      <Modal
-        isOpen={showResetPasswordModal}
-        onClose={() => setShowResetPasswordModal(false)}
-        title="Reset Password"
-      >
-        <form onSubmit={handleResetPassword} className="space-y-4">
-          <Input
-            label="New Password"
-            type="password"
-            placeholder="Enter new password"
-            value={resetForm.password}
-            onChange={(e) => setResetForm({ ...resetForm, password: e.target.value })}
-            required
-          />
-          <Input
-            label="Confirm Password"
-            type="password"
-            placeholder="Confirm new password"
-            value={resetForm.confirmPassword}
-            onChange={(e) => setResetForm({ ...resetForm, confirmPassword: e.target.value })}
-            required
-          />
+      <Modal isOpen={showResetPasswordModal} onClose={() => setShowResetPasswordModal(false)} title="Reset Password">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Generate a new temporary password for <strong>{editingAdmin?.fullName}</strong>?
+            It will be emailed to them.
+          </p>
           <div className="flex justify-end space-x-3">
-            <Button variant="secondary" onClick={() => setShowResetPasswordModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="warning" isLoading={saving}>
-              Reset Password
-            </Button>
+            <Button variant="secondary" onClick={() => setShowResetPasswordModal(false)}>Cancel</Button>
+            <Button variant="warning" onClick={handleResetPassword} isLoading={saving}>Reset Password</Button>
           </div>
-        </form>
+        </div>
       </Modal>
 
       <ConfirmDialog
@@ -397,7 +277,7 @@ const SuperAdminPage = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Admin"
-        message={`Are you sure you want to delete "${deleteTarget?.username || deleteTarget?.email}"? This cannot be undone.`}
+        message={`Delete "${deleteTarget?.fullName}"? This cannot be undone.`}
         confirmText="Delete"
         variant="danger"
       />

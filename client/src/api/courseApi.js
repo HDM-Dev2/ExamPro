@@ -25,13 +25,18 @@ export const deleteCourse = async (id) => {
   return response.data;
 };
 
-export const addAssessment = async (id, assessmentData) => {
-  const response = await api.post(`/courses/${id}/assessments`, assessmentData);
+export const addUnit = async (courseId, unitData) => {
+  const response = await api.post(`/courses/${courseId}/units`, unitData);
   return response.data;
 };
 
-export const deleteAssessment = async (id, assessmentIndex) => {
-  const response = await api.delete(`/courses/${id}/assessments/${assessmentIndex}`);
+export const updateUnit = async (courseId, unitId, unitData) => {
+  const response = await api.put(`/courses/${courseId}/units/${unitId}`, unitData);
+  return response.data;
+};
+
+export const deleteUnit = async (courseId, unitId) => {
+  const response = await api.delete(`/courses/${courseId}/units/${unitId}`);
   return response.data;
 };
 
@@ -42,6 +47,16 @@ export const addManualStudent = async (id, studentData) => {
 
 export const deleteManualStudent = async (id, studentIndex) => {
   const response = await api.delete(`/courses/${id}/manual-students/${studentIndex}`);
+  return response.data;
+};
+
+export const getCourseScores = async (id) => {
+  const response = await api.get(`/courses/${id}/scores`);
+  return response.data;
+};
+
+export const saveBulkScores = async (id, data) => {
+  const response = await api.post(`/courses/${id}/scores/bulk`, data);
   return response.data;
 };
 

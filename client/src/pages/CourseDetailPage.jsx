@@ -3,19 +3,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useSettings } from '../context/SettingsContext';
 import * as courseApi from '../api/courseApi';
-import * as scoreApi from '../api/scoreApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
-import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
 import Badge from '../components/ui/Badge';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Spinner from '../components/ui/Spinner';
 import Alert from '../components/ui/Alert';
-import { formatScore } from '../utils/formatters';
-import { ASSESSMENT_TYPES, formatExamType } from '../utils/constants';
-import { getGradeFromSettings, getGradeColorFromSettings } from '../utils/calculations';
+import AddUnitModal from '../components/course/AddUnitModal';
+import RecordScoreModal from '../components/course/RecordScoreModal';
+import { CRNM, calculateStudentResults, getGradeFromSettings, getGradeColorFromSettings, getRequiredTypes } from '../utils/calculations';
+import { formatExamType } from '../utils/constants';
 import toast from 'react-hot-toast';
 
 const CourseDetailPage = () => {
@@ -23,21 +22,18 @@ const CourseDetailPage = () => {
   const navigate = useNavigate();
   const { fetchCourseById, currentCourse, loading } = useData();
   const { settings } = useSettings();
-  const [scores, setScores] = useState({});
-  const [showAddAssessment, setShowAddAssessment] = useState(false);
+  const [scores, setScores] = useState([]);
+  const [showAddUnit, setShowAddUnit] = useState(false);
   const [showAddManualStudent, setShowAddManualStudent] = useState(false);
-  const [deleteAssessmentTarget, setDeleteAssessmentTarget] = useState(null);
+  const [editUnitTarget, setEditUnitTarget] = useState(null);
+  const [deleteUnitTarget, setDeleteUnitTarget] = useState(null);
   const [deleteManualStudentTarget, setDeleteManualStudentTarget] = useState(null);
-  const [assessmentForm, setAssessmentForm] = useState({
-    type: 'assignment',
-    number: 1,
-    title: '',
-    maxScore: 100,
-  });
+  const [recordModal, setRecordModal] = useState({ unit: null, type: null });
   const [manualStudentForm, setManualStudentForm] = useState({
     studentName: '',
     admissionNumber: '',
   });
+  const [editUnitForm, setEditUnitForm] = useState({ name: '', code: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -46,87 +42,79 @@ const CourseDetailPage = () => {
 
   const loadCourseData = async () => {
     try {
-      const courseData = await fetchCourseById(courseId);
-      const scoreData = await scoreApi.getScoresByCourse(courseId);
-      
-      const scoreMap = {};
-      scoreData.forEach((score) => {
-        const studentId = typeof score.studentId === 'object' ? score.studentId._id : score.studentId;
-        const key = `${studentId}_${score.assessmentIndex}`;
-        scoreMap[key] = score.score;
-      });
-      setScores(scoreMap);
+      await fetchCourseById(courseId);
+      const scoreData = await courseApi.getCourseScores(courseId);
+      setScores(scoreData);
     } catch (error) {
       toast.error('Failed to load course data');
       navigate('/courses');
     }
   };
 
-  const handleAddAssessment = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-
+  const handleAddUnit = async (unitData) => {
     try {
-      const title = assessmentForm.title || `${assessmentForm.type.toUpperCase()} ${assessmentForm.number}`;
-      await courseApi.addAssessment(courseId, {
-        ...assessmentForm,
-        title,
-      });
-      toast.success(`${title} added successfully`);
-      setShowAddAssessment(false);
-      setAssessmentForm({ type: 'assignment', number: 1, title: '', maxScore: 100 });
-      setScores({});
+      await courseApi.addUnit(courseId, unitData);
+      toast.success('Unit added');
       await loadCourseData();
     } catch (error) {
-      toast.error('Failed to add assessment');
-    } finally {
-      setSaving(false);
+      toast.error(error.response?.data?.message || 'Failed to add unit');
+      throw error;
     }
   };
 
-  const handleDeleteAssessment = async () => {
-    if (deleteAssessmentTarget === null) return;
-
+  const handleEditUnit = async (e) => {
+    e.preventDefault();
     try {
-      await courseApi.deleteAssessment(courseId, deleteAssessmentTarget);
-      
-      setScores((prevScores) => {
-        const newScores = {};
-        Object.entries(prevScores).forEach(([key, value]) => {
-          const [studentId, assessmentIndexStr] = key.split('_');
-          const idx = parseInt(assessmentIndexStr);
-          
-          if (idx === deleteAssessmentTarget) {
-            return;
-          }
-          
-          if (idx > deleteAssessmentTarget) {
-            newScores[`${studentId}_${idx - 1}`] = value;
-          } else {
-            newScores[key] = value;
-          }
-        });
-        return newScores;
-      });
-      
-      toast.success('Assessment deleted successfully');
-      setDeleteAssessmentTarget(null);
+      await courseApi.updateUnit(courseId, editUnitTarget._id, editUnitForm);
+      toast.success('Unit updated');
+      setEditUnitTarget(null);
       await loadCourseData();
     } catch (error) {
-      toast.error('Failed to delete assessment');
+      toast.error('Failed to update unit');
+    }
+  };
+
+  const handleDeleteUnit = async () => {
+    if (!deleteUnitTarget) return;
+    try {
+      await courseApi.deleteUnit(courseId, deleteUnitTarget._id);
+      toast.success('Unit deleted');
+      setDeleteUnitTarget(null);
+      await loadCourseData();
+    } catch (error) {
+      toast.error('Failed to delete unit');
+    }
+  };
+
+  const handleSaveScores = async (payload) => {
+    try {
+      const result = await courseApi.saveBulkScores(courseId, {
+        unitId: recordModal.unit._id,
+        assessmentType: recordModal.type,
+        scores: payload,
+      });
+      toast.success(`${result.totalSaved} scores saved`);
+      if (result.totalErrors > 0) {
+        toast.error(`${result.totalErrors} scores failed`);
+      }
+      setRecordModal({ unit: null, type: null });
+      await loadCourseData();
+      return result;
+    } catch (error) {
+      toast.error('Failed to save scores');
+      throw error;
     }
   };
 
   const handleAddManualStudent = async (e) => {
     e.preventDefault();
     setSaving(true);
-
     try {
       await courseApi.addManualStudent(courseId, manualStudentForm);
-      toast.success('Manual student added successfully');
+      toast.success('Manual student added');
       setShowAddManualStudent(false);
       setManualStudentForm({ studentName: '', admissionNumber: '' });
-      loadCourseData();
+      await loadCourseData();
     } catch (error) {
       toast.error('Failed to add manual student');
     } finally {
@@ -136,148 +124,97 @@ const CourseDetailPage = () => {
 
   const handleDeleteManualStudent = async () => {
     if (deleteManualStudentTarget === null) return;
-
     try {
       await courseApi.deleteManualStudent(courseId, deleteManualStudentTarget);
-      toast.success('Manual student deleted successfully');
+      toast.success('Manual student removed');
       setDeleteManualStudentTarget(null);
-      loadCourseData();
+      await loadCourseData();
     } catch (error) {
       toast.error('Failed to delete manual student');
     }
-  };
-
-  const handleScoreChange = (studentId, assessmentIndex, value) => {
-    const key = `${studentId}_${assessmentIndex}`;
-    setScores((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const handleSaveScores = async () => {
-    setSaving(true);
-
-    try {
-      const scoreEntries = [];
-      
-      Object.entries(scores).forEach(([key, value]) => {
-        const [studentId, assessmentIndex] = key.split('_');
-        if (value !== '' && value !== null && value !== undefined && !isNaN(value)) {
-          scoreEntries.push({
-            studentId,
-            assessmentIndex: parseInt(assessmentIndex),
-            score: Number(value),
-          });
-        }
-      });
-
-      if (scoreEntries.length === 0) {
-        toast.error('No scores to save');
-        setSaving(false);
-        return;
-      }
-
-      const result = await scoreApi.createBulkScores({
-        courseId,
-        scores: scoreEntries,
-      });
-
-      toast.success(`${result.totalSaved} scores saved successfully`);
-      if (result.totalErrors > 0) {
-        toast.error(`${result.totalErrors} scores failed to save`);
-      }
-      loadCourseData();
-    } catch (error) {
-      toast.error('Failed to save scores');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const assessmentsWithIndex = currentCourse?.assessments?.map((assessment, index) => ({
-    ...assessment,
-    originalIndex: index,
-  })) || [];
-
-  const assignmentAssessments = assessmentsWithIndex.filter(a => a.type === 'assignment');
-  const catAssessments = assessmentsWithIndex.filter(a => a.type === 'cat');
-  const examAssessments = assessmentsWithIndex.filter(a => a.type === 'exam');
-
-  const hasAssignments = assignmentAssessments.length > 0;
-  const hasCats = catAssessments.length > 0;
-  const hasExams = examAssessments.length > 0;
-
-  const showAssignmentAvg = assignmentAssessments.length > 1;
-  const showCatAvg = catAssessments.length > 1;
-  const showExamAvg = examAssessments.length > 1;
-
-  const getStudentScore = (studentId, assessmentIndex) => {
-    const key = `${studentId}_${assessmentIndex}`;
-    return scores[key] || '';
-  };
-
-  const getAverage = (studentId, assessmentType) => {
-    const typeAssessments = assessmentsWithIndex
-      .filter((assessment) => assessment.type === assessmentType);
-    
-    if (typeAssessments.length === 0) return '';
-    
-    const validScores = typeAssessments
-      .map((assessment) => getStudentScore(studentId, assessment.originalIndex))
-      .filter((score) => score !== '' && !isNaN(score))
-      .map(Number);
-    
-    if (validScores.length === 0) return '';
-    
-    const sum = validScores.reduce((acc, score) => acc + score, 0);
-    return sum / validScores.length;
-  };
-
-  const calculateFinalForStudent = (studentId) => {
-    const assignmentAvg = getAverage(studentId, 'assignment');
-    const catAvg = getAverage(studentId, 'cat');
-    const examAvg = getAverage(studentId, 'exam');
-    
-    const assignmentScore = assignmentAvg === '' ? 0 : assignmentAvg;
-    const catScore = catAvg === '' ? 0 : catAvg;
-    const examScore = examAvg === '' ? 0 : examAvg;
-    
-    let finalScore = 0;
-    
-    switch (currentCourse?.examType) {
-      case 'assignment_cat_exam':
-        finalScore = (assignmentScore * currentCourse.weights.assignment / 100) +
-                     (catScore * currentCourse.weights.cat / 100) +
-                     (examScore * currentCourse.weights.exam / 100);
-        break;
-      case 'cat_exam':
-        finalScore = (catScore * currentCourse.weights.cat / 100) +
-                     (examScore * currentCourse.weights.exam / 100);
-        break;
-      case 'exam_only':
-        finalScore = examScore;
-        break;
-      default:
-        finalScore = 0;
-    }
-    
-    return Math.round(finalScore * 100) / 100;
   };
 
   if (loading && !currentCourse) {
     return <Spinner size="lg" className="py-20" />;
   }
 
-  if (!currentCourse) {
-    return null;
-  }
+  if (!currentCourse) return null;
 
-  const finalScores = currentCourse.students?.map((student) => calculateFinalForStudent(student._id)) || [];
+  const units = currentCourse.units || [];
+  const students = currentCourse.students || [];
+  const requiredTypes = getRequiredTypes(currentCourse.examType);
 
-  const summary = {
-    classAverage: finalScores.length > 0 ? finalScores.reduce((a, b) => a + b, 0) / finalScores.length : 0,
-    passRate: finalScores.length > 0 ? Math.round((finalScores.filter(s => s >= (settings?.passMark || 40)).length / finalScores.length) * 100) : 0,
-    highest: finalScores.length > 0 ? Math.max(...finalScores) : 0,
-    lowest: finalScores.length > 0 ? Math.min(...finalScores) : 0,
+  const getMaxForType = (type) => currentCourse.weights[type] || 0;
+
+  const showAssignment = requiredTypes.includes('assignment');
+  const showCat = requiredTypes.includes('cat');
+  const showExam = requiredTypes.includes('exam');
+
+  // Status calculation for each unit
+  const getUnitStatus = (unit) => {
+    if (students.length === 0) {
+      return { status: 'empty', label: 'No Students', color: 'gray' };
+    }
+
+    const totalNeeded = students.length * requiredTypes.length;
+    let recorded = 0;
+
+    students.forEach((student) => {
+      requiredTypes.forEach((type) => {
+        const found = scores.find(
+          (s) =>
+            (s.studentId?._id || s.studentId)?.toString() === student._id.toString() &&
+            (s.unitId?._id || s.unitId)?.toString() === unit._id.toString() &&
+            s.assessmentType === type
+        );
+        if (found) recorded++;
+      });
+    });
+
+    if (recorded === 0) {
+      return { status: 'none', label: 'Not Recorded', color: 'gray', recorded, total: totalNeeded };
+    }
+
+    if (recorded === totalNeeded) {
+      return { status: 'full', label: 'Fully Recorded', color: 'green', recorded, total: totalNeeded };
+    }
+
+    return { status: 'partial', label: 'Partial', color: 'yellow', recorded, total: totalNeeded };
   };
+
+  const getStatusBadgeVariant = (color) => {
+    switch (color) {
+      case 'green': return 'success';
+      case 'yellow': return 'warning';
+      case 'gray': return 'default';
+      default: return 'default';
+    }
+  };
+
+  const studentSummaries = students.map((student) => {
+    const studentScores = scores.filter(
+      (s) => (s.studentId?._id || s.studentId)?.toString() === student._id.toString()
+    );
+    
+    const results = calculateStudentResults(currentCourse, studentScores);
+    
+    return {
+      student,
+      unitResults: results.unitResults,
+      courseFinal: results.courseFinal,
+    };
+  });
+
+  const numericFinals = studentSummaries.filter(s => s.courseFinal !== CRNM).map(s => s.courseFinal);
+  const crnmCount = studentSummaries.filter(s => s.courseFinal === CRNM).length;
+  
+  const classAverage = numericFinals.length > 0
+    ? Math.round(numericFinals.reduce((a, b) => a + b, 0) / numericFinals.length)
+    : 0;
+  
+  const passRate = numericFinals.length > 0
+    ? Math.round((numericFinals.filter((s) => s >= (settings?.passMark || 40)).length / numericFinals.length) * 100)
+    : 0;
 
   return (
     <div>
@@ -294,27 +231,30 @@ const CourseDetailPage = () => {
           </button>
           <h1 className="text-2xl font-bold text-gray-900">{currentCourse.courseName}</h1>
           <p className="text-gray-600 mt-1">{currentCourse.courseCode}</p>
-          <Badge variant="primary" className="mt-2">{formatExamType(currentCourse.examType)}</Badge>
+          <div className="flex items-center space-x-2 mt-2">
+            <Badge variant="primary">{formatExamType(currentCourse.examType)}</Badge>
+            <Badge variant="info">{units.length} Units</Badge>
+          </div>
         </div>
         <div className="flex space-x-3">
           <Button variant="secondary" onClick={() => setShowAddManualStudent(true)}>
             Add Manual Student
           </Button>
-          <Button onClick={() => setShowAddAssessment(true)}>
+          <Button onClick={() => setShowAddUnit(true)}>
             <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Add Assessment
+            Add Unit
           </Button>
         </div>
       </div>
 
-      {currentCourse.assessments?.length === 0 && (
+      {units.length === 0 && (
         <div className="mb-6">
           <Alert
             type="info"
-            title="No assessments yet"
-            message="Click 'Add Assessment' to add your first Assignment, CAT, or Exam."
+            title="No units yet"
+            message="Add units first before recording scores."
           />
         </div>
       )}
@@ -322,251 +262,255 @@ const CourseDetailPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <p className="text-sm text-gray-500">Class Average</p>
-          <p className="text-2xl font-bold text-gray-900">{formatScore(summary.classAverage)}</p>
+          <p className="text-2xl font-bold text-gray-900">{classAverage}</p>
         </Card>
         <Card>
           <p className="text-sm text-gray-500">Pass Rate</p>
-          <p className="text-2xl font-bold text-gray-900">{summary.passRate}%</p>
+          <p className="text-2xl font-bold text-gray-900">{passRate}%</p>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Highest Score</p>
-          <p className="text-2xl font-bold text-gray-900">{formatScore(summary.highest)}</p>
+          <p className="text-sm text-gray-500">Units</p>
+          <p className="text-2xl font-bold text-gray-900">{units.length}</p>
         </Card>
         <Card>
-          <p className="text-sm text-gray-500">Lowest Score</p>
-          <p className="text-2xl font-bold text-gray-900">{formatScore(summary.lowest)}</p>
+          <p className="text-sm text-gray-500">CRNM</p>
+          <p className="text-2xl font-bold text-red-600">{crnmCount}</p>
         </Card>
       </div>
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Student
-                </th>
-                
-                {hasAssignments && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-blue-50" colSpan={showAssignmentAvg ? assignmentAssessments.length + 1 : assignmentAssessments.length}>
-                    Assignments
-                  </th>
-                )}
-                
-                {hasCats && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-yellow-50" colSpan={showCatAvg ? catAssessments.length + 1 : catAssessments.length}>
-                    CATs
-                  </th>
-                )}
-                
-                {hasExams && (
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-green-50" colSpan={showExamAvg ? examAssessments.length + 1 : examAssessments.length}>
-                    Exams
-                  </th>
-                )}
-                
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Final Score
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Grade
-                </th>
-              </tr>
-              <tr>
-                <th className="px-4 py-3"></th>
-                
-                {assignmentAssessments.map((assessment) => (
-                  <th key={`a-${assessment.originalIndex}`} className="px-2 py-2 text-left text-xs font-medium text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <span>{assessment.title || `A${assessment.number}`}</span>
-                      <button 
-                        onClick={() => setDeleteAssessmentTarget(assessment.originalIndex)}
-                        className="text-red-400 hover:text-red-600"
-                      >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </th>
-                ))}
-                {showAssignmentAvg && (
-                  <th className="px-2 py-2 text-left text-xs font-bold text-blue-600 uppercase">Avg</th>
-                )}
-                
-                {catAssessments.map((assessment) => (
-                  <th key={`c-${assessment.originalIndex}`} className="px-2 py-2 text-left text-xs font-medium text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <span>{assessment.title || `CAT ${assessment.number}`}</span>
-                      <button 
-                        onClick={() => setDeleteAssessmentTarget(assessment.originalIndex)}
-                        className="text-red-400 hover:text-red-600"
-                      >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </th>
-                ))}
-                {showCatAvg && (
-                  <th className="px-2 py-2 text-left text-xs font-bold text-yellow-600 uppercase">Avg</th>
-                )}
-                
-                {examAssessments.map((assessment) => (
-                  <th key={`e-${assessment.originalIndex}`} className="px-2 py-2 text-left text-xs font-medium text-gray-400">
-                    <div className="flex items-center space-x-1">
-                      <span>{assessment.title || `Exam ${assessment.number}`}</span>
-                      <button 
-                        onClick={() => setDeleteAssessmentTarget(assessment.originalIndex)}
-                        className="text-red-400 hover:text-red-600"
-                      >
-                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  </th>
-                ))}
-                {showExamAvg && (
-                  <th className="px-2 py-2 text-left text-xs font-bold text-green-600 uppercase">Avg</th>
-                )}
-                
-                <th className="px-4 py-3"></th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {currentCourse.students?.map((student) => {
-                const finalScore = calculateFinalForStudent(student._id);
-                const grade = getGradeFromSettings(finalScore, settings);
-                const gradeColor = getGradeColorFromSettings(grade, settings);
-                
-                return (
-                  <tr key={student._id}>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="font-medium text-gray-900">{student.fullName}</p>
-                      <p className="text-xs text-gray-500">{student.admissionNumber || ''}</p>
-                    </td>
-                    
-                    {assignmentAssessments.map((assessment) => (
-                      <td key={`a-${assessment.originalIndex}`} className="px-2 py-3 whitespace-nowrap">
-                        <input
-                          type="number"
-                          min="0"
-                          max={assessment.maxScore}
-                          className="w-16 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={getStudentScore(student._id, assessment.originalIndex)}
-                          onChange={(e) => handleScoreChange(student._id, assessment.originalIndex, e.target.value)}
-                        />
-                      </td>
-                    ))}
-                    {showAssignmentAvg && (
-                      <td className="px-2 py-3 whitespace-nowrap bg-blue-50">
-                        <span className="font-bold text-blue-700">{formatScore(getAverage(student._id, 'assignment'))}</span>
-                      </td>
-                    )}
-                    
-                    {catAssessments.map((assessment) => (
-                      <td key={`c-${assessment.originalIndex}`} className="px-2 py-3 whitespace-nowrap">
-                        <input
-                          type="number"
-                          min="0"
-                          max={assessment.maxScore}
-                          className="w-16 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={getStudentScore(student._id, assessment.originalIndex)}
-                          onChange={(e) => handleScoreChange(student._id, assessment.originalIndex, e.target.value)}
-                        />
-                      </td>
-                    ))}
-                    {showCatAvg && (
-                      <td className="px-2 py-3 whitespace-nowrap bg-yellow-50">
-                        <span className="font-bold text-yellow-700">{formatScore(getAverage(student._id, 'cat'))}</span>
-                      </td>
-                    )}
-                    
-                    {examAssessments.map((assessment) => (
-                      <td key={`e-${assessment.originalIndex}`} className="px-2 py-3 whitespace-nowrap">
-                        <input
-                          type="number"
-                          min="0"
-                          max={assessment.maxScore}
-                          className="w-16 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={getStudentScore(student._id, assessment.originalIndex)}
-                          onChange={(e) => handleScoreChange(student._id, assessment.originalIndex, e.target.value)}
-                        />
-                      </td>
-                    ))}
-                    {showExamAvg && (
-                      <td className="px-2 py-3 whitespace-nowrap bg-green-50">
-                        <span className="font-bold text-green-700">{formatScore(getAverage(student._id, 'exam'))}</span>
-                      </td>
-                    )}
-                    
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="font-semibold text-gray-900">{formatScore(finalScore)}</span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`font-semibold ${gradeColor}`}>{grade}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <Card className="mb-6">
+        <div className="flex justify-between items-center mb-4 pb-4 border-b">
+          <h3 className="text-lg font-bold text-gray-900">Units & Score Entry</h3>
         </div>
-        
-        <div className="mt-6 flex justify-end">
-          <Button onClick={handleSaveScores} isLoading={saving} size="lg">
-            Save All Scores
-          </Button>
-        </div>
+
+        {units.length === 0 ? (
+          <p className="text-gray-400 text-center py-4">No units added yet</p>
+        ) : (
+          <div className="space-y-4">
+            {units.map((unit) => {
+              const unitStatus = getUnitStatus(unit);
+
+              return (
+                <div
+                  key={unit._id}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <p className="font-bold text-gray-900">{unit.name}</p>
+                        <Badge variant={getStatusBadgeVariant(unitStatus.color)}>
+                          {unitStatus.label}
+                        </Badge>
+                        {unitStatus.status === 'partial' && (
+                          <span className="text-xs text-gray-500">
+                            {unitStatus.recorded}/{unitStatus.total}
+                          </span>
+                        )}
+                      </div>
+                      {unit.code && <p className="text-xs text-gray-500 mt-1">{unit.code}</p>}
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => {
+                          setEditUnitTarget(unit);
+                          setEditUnitForm({ name: unit.name, code: unit.code || '' });
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setDeleteUnitTarget(unit)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {showAssignment && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRecordModal({ unit, type: 'assignment' })}
+                      >
+                        Record Assignment (Max {getMaxForType('assignment')})
+                      </Button>
+                    )}
+                    {showCat && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRecordModal({ unit, type: 'cat' })}
+                      >
+                        Record CAT (Max {getMaxForType('cat')})
+                      </Button>
+                    )}
+                    {showExam && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRecordModal({ unit, type: 'exam' })}
+                      >
+                        Record Exam (Max {getMaxForType('exam')})
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
 
+      <Card>
+        <div className="flex justify-between items-center mb-4 pb-4 border-b">
+          <h3 className="text-lg font-bold text-gray-900">Final Results</h3>
+        </div>
+
+        {students.length === 0 ? (
+          <p className="text-gray-400 text-center py-4">No students in this class</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Student
+                  </th>
+                  {units.map((unit) => (
+                    <th
+                      key={unit._id}
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                    >
+                      {unit.name}
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Final
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Grade
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {studentSummaries.map((summary) => {
+                  const grade = summary.courseFinal === CRNM 
+                    ? CRNM 
+                    : getGradeFromSettings(summary.courseFinal, settings);
+                  const gradeColor = getGradeColorFromSettings(grade, settings);
+
+                  return (
+                    <tr key={summary.student._id}>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <p className="font-medium text-gray-900">{summary.student.fullName}</p>
+                        <p className="text-xs text-gray-500">{summary.student.admissionNumber || ''}</p>
+                      </td>
+                      {units.map((unit) => {
+                        const unitResult = summary.unitResults.find(
+                          (u) => u.unitId?.toString() === unit._id.toString()
+                        );
+                        const total = unitResult?.total;
+                        const isCRNM = total === CRNM;
+                        return (
+                          <td key={unit._id} className="px-4 py-3 whitespace-nowrap">
+                            {isCRNM ? (
+                              <span className="text-red-600 font-semibold text-xs">CRNM</span>
+                            ) : (
+                              <span className="text-gray-900">{total ?? '-'}</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {summary.courseFinal === CRNM ? (
+                          <span className="text-red-600 font-semibold text-xs">CRNM</span>
+                        ) : (
+                          <span className="font-bold text-gray-900">{summary.courseFinal}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className={`font-bold ${gradeColor}`}>{grade}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {currentCourse.manualStudents?.length > 0 && (
+          <div className="mt-6 pt-4 border-t">
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">Manual Students</h4>
+            <div className="space-y-2">
+              {currentCourse.manualStudents.map((ms, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between text-sm p-2 bg-gray-50 rounded"
+                >
+                  <div>
+                    <p className="font-medium">{ms.studentName}</p>
+                    <p className="text-xs text-gray-500">{ms.admissionNumber || ''}</p>
+                  </div>
+                  <button
+                    onClick={() => setDeleteManualStudentTarget(idx)}
+                    className="text-red-600 hover:text-red-800 text-xs"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <AddUnitModal
+        isOpen={showAddUnit}
+        onClose={() => setShowAddUnit(false)}
+        onSubmit={handleAddUnit}
+        existingUnits={units}
+      />
+
+      {recordModal.unit && recordModal.type && (
+        <RecordScoreModal
+          isOpen={!!recordModal.unit}
+          onClose={() => setRecordModal({ unit: null, type: null })}
+          onSubmit={handleSaveScores}
+          unit={recordModal.unit}
+          assessmentType={recordModal.type}
+          maxScore={getMaxForType(recordModal.type)}
+          students={students}
+          existingScores={scores}
+        />
+      )}
+
       <Modal
-        isOpen={showAddAssessment}
-        onClose={() => setShowAddAssessment(false)}
-        title="Add Assessment (Assignment / CAT / Exam)"
+        isOpen={!!editUnitTarget}
+        onClose={() => setEditUnitTarget(null)}
+        title="Edit Unit"
       >
-        <form onSubmit={handleAddAssessment} className="space-y-4">
-          <Select
-            label="Assessment Type"
-            options={ASSESSMENT_TYPES}
-            value={assessmentForm.type}
-            onChange={(e) => setAssessmentForm({ ...assessmentForm, type: e.target.value })}
+        <form onSubmit={handleEditUnit} className="space-y-4">
+          <Input
+            label="Unit Name"
+            value={editUnitForm.name}
+            onChange={(e) => setEditUnitForm({ ...editUnitForm, name: e.target.value })}
             required
           />
           <Input
-            label="Number"
-            type="number"
-            min="1"
-            placeholder="e.g., 1 for CAT 1, 2 for CAT 2"
-            value={assessmentForm.number}
-            onChange={(e) => setAssessmentForm({ ...assessmentForm, number: Number(e.target.value) })}
-            required
-          />
-          <Input
-            label="Title (optional)"
-            placeholder="e.g., CAT 1, Assignment 2, Final Exam"
-            value={assessmentForm.title}
-            onChange={(e) => setAssessmentForm({ ...assessmentForm, title: e.target.value })}
-          />
-          <Input
-            label="Max Score"
-            type="number"
-            min="1"
-            placeholder="e.g., 100"
-            value={assessmentForm.maxScore}
-            onChange={(e) => setAssessmentForm({ ...assessmentForm, maxScore: Number(e.target.value) })}
-            required
+            label="Unit Code"
+            value={editUnitForm.code}
+            onChange={(e) => setEditUnitForm({ ...editUnitForm, code: e.target.value })}
           />
           <div className="flex justify-end space-x-3">
-            <Button variant="secondary" onClick={() => setShowAddAssessment(false)}>
+            <Button variant="secondary" onClick={() => setEditUnitTarget(null)}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={saving}>
-              Add Assessment
-            </Button>
+            <Button type="submit">Update</Button>
           </div>
         </form>
       </Modal>
@@ -579,14 +523,12 @@ const CourseDetailPage = () => {
         <form onSubmit={handleAddManualStudent} className="space-y-4">
           <Input
             label="Student Name"
-            placeholder="Enter student name"
             value={manualStudentForm.studentName}
             onChange={(e) => setManualStudentForm({ ...manualStudentForm, studentName: e.target.value })}
             required
           />
           <Input
             label="Admission Number"
-            placeholder="Enter admission number"
             value={manualStudentForm.admissionNumber}
             onChange={(e) => setManualStudentForm({ ...manualStudentForm, admissionNumber: e.target.value })}
           />
@@ -602,11 +544,11 @@ const CourseDetailPage = () => {
       </Modal>
 
       <ConfirmDialog
-        isOpen={deleteAssessmentTarget !== null}
-        onClose={() => setDeleteAssessmentTarget(null)}
-        onConfirm={handleDeleteAssessment}
-        title="Delete Assessment"
-        message="Are you sure you want to delete this assessment? All scores for this assessment will be removed."
+        isOpen={!!deleteUnitTarget}
+        onClose={() => setDeleteUnitTarget(null)}
+        onConfirm={handleDeleteUnit}
+        title="Delete Unit"
+        message={`Delete "${deleteUnitTarget?.name}" and all its scores?`}
         confirmText="Delete"
         variant="danger"
       />
@@ -616,8 +558,8 @@ const CourseDetailPage = () => {
         onClose={() => setDeleteManualStudentTarget(null)}
         onConfirm={handleDeleteManualStudent}
         title="Delete Manual Student"
-        message="Are you sure you want to delete this manual student?"
-        confirmText="Delete"
+        message="Remove this manual student?"
+        confirmText="Remove"
         variant="danger"
       />
     </div>

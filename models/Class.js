@@ -1,14 +1,20 @@
 const mongoose = require('mongoose');
 
 const classSchema = new mongoose.Schema({
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
   className: {
     type: String,
     required: true,
-    unique: true,
     trim: true
   },
   description: {
     type: String,
+    default: '',
     trim: true
   },
   academicYear: {
@@ -28,6 +34,8 @@ const classSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+classSchema.index({ className: 1, adminId: 1 }, { unique: true });
 
 classSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

@@ -9,12 +9,15 @@ router.post('/', adminAuth, courseController.createCourse);
 router.put('/:id', adminAuth, courseController.updateCourse);
 router.delete('/:id', adminAuth, courseController.deleteCourse);
 
-router.post('/:id/assessments', adminAuth, courseController.addAssessment);
-router.delete('/:id/assessments/:assessmentIndex', adminAuth, courseController.deleteAssessment);
+router.post('/:id/units', adminAuth, courseController.addUnit);
+router.put('/:id/units/:unitId', adminAuth, courseController.updateUnit);
+router.delete('/:id/units/:unitId', adminAuth, courseController.deleteUnit);
 
 router.post('/:id/manual-students', adminAuth, courseController.addManualStudent);
 router.delete('/:id/manual-students/:studentIndex', adminAuth, courseController.deleteManualStudent);
 
+router.get('/:id/scores', adminAuth, courseController.getCourseScores);
+router.post('/:id/scores/bulk', adminAuth, courseController.saveBulkScores);
 router.get('/:id/summary', adminAuth, courseController.getCourseSummary);
 
 module.exports = router;

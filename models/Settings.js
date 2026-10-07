@@ -9,47 +9,59 @@ const settingsSchema = new mongoose.Schema({
   },
   schoolName: {
     type: String,
-    default: 'My School'
+    default: 'My School',
+    trim: true
   },
   schoolCode: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   address: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   city: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   state: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   postalCode: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   country: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   phone: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   email: {
     type: String,
-    default: ''
+    default: '',
+    trim: true,
+    lowercase: true
   },
   website: {
     type: String,
-    default: ''
+    default: '',
+    trim: true
   },
   motto: {
     type: String,
-    default: 'Excellence in Education'
+    default: 'Excellence in Education',
+    trim: true
   },
   logo: {
     type: String,

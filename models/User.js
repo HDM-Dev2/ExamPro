@@ -23,12 +23,27 @@ const userSchema = new mongoose.Schema({
   },
   fullName: {
     type: String,
-    default: 'Administrator'
+    required: true
+  },
+  phone: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  schoolName: {
+    type: String,
+    trim: true,
+    default: ''
   },
   role: {
     type: String,
     enum: ['admin', 'teacher'],
     default: 'admin'
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'rejected', 'suspended'],
+    default: 'active'
   },
   isHiddenAdmin: {
     type: Boolean,
@@ -37,7 +52,45 @@ const userSchema = new mongoose.Schema({
   adminHash: {
     type: String,
     unique: true,
-    sparse: true,
+    sparse: true
+  },
+  mustChangePassword: {
+    type: Boolean,
+    default: false
+  },
+  temporaryPasswordSentAt: {
+    type: Date,
+    default: null
+  },
+  resetToken: {
+    type: String,
+    default: null,
+    index: true
+  },
+  resetTokenExpires: {
+    type: Date,
+    default: null
+  },
+  registrationSource: {
+    type: String,
+    enum: ['admin', 'self'],
+    default: 'admin'
+  },
+  approvedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  approvedAt: {
+    type: Date,
+    default: null
+  },
+  rejectedReason: {
+    type: String,
+    default: ''
+  },
+  rejectedAt: {
+    type: Date,
     default: null
   },
   failedAttempts: {
@@ -71,15 +124,15 @@ userSchema.pre('save', async function(next) {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
   }
-  
+
   if (this.isHiddenAdmin && !this.adminHash) {
     this.adminHash = crypto.randomBytes(16).toString('hex');
   }
-  
+
   if (!this.isHiddenAdmin) {
-    this.adminHash = null;
+    this.adminHash = undefined;
   }
-  
+
   next();
 });
 

@@ -1,36 +1,60 @@
 const jwt = require('jsonwebtoken');
-const adminConfig = require('../config/adminConfig');
+const User = require('../models/User');
 
 module.exports = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+
     if (!token) {
       return res.status(401).json({ message: 'No token provided' });
     }
-    
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      console.error('Token verification failed:', error.message);
+      return res.status(401).json({
+        message: 'Invalid or expired token. Please login again.',
+        code: 'TOKEN_INVALID'
+      });
+    }
+
     if (decoded.role !== 'admin' && !decoded.isHiddenAdmin) {
       return res.status(403).json({ message: 'Access denied' });
     }
-    
-    if (decoded.isHiddenAdmin) {
-      const tokenAge = Date.now() - decoded.iat * 1000;
-      if (tokenAge > adminConfig.ADMIN_SESSION_TIMEOUT) {
-        return res.status(401).json({ message: 'Session expired' });
-      }
+
+    const user = await User.findById(decoded.userId).select('_id role status isActive mustChangePassword isHiddenAdmin');
+    if (!user) {
+      return res.status(401).json({ message: 'User not found', code: 'AUTH_FAILED' });
     }
-    
-    req.userId = decoded.userId;
-    req.role = decoded.role;
-    req.isHiddenAdmin = decoded.isHiddenAdmin || false;
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'Account is inactive', code: 'INACTIVE' });
+    }
+
+    if (user.status !== 'active') {
+      return res.status(403).json({
+        message: `Account is ${user.status}`,
+        code: user.status.toUpperCase()
+      });
+    }
+
+    if (user.mustChangePassword && !req.path.includes('change-password')) {
+      return res.status(403).json({
+        message: 'You must change your password before continuing',
+        code: 'MUST_CHANGE_PASSWORD'
+      });
+    }
+
+    req.userId = user._id;
+    req.role = user.role;
+    req.isHiddenAdmin = user.isHiddenAdmin || false;
     req.isAdmin = true;
-    
+
     next();
-    
   } catch (error) {
-    console.error('Admin auth error:', error);
-    res.status(401).json({ message: 'Invalid token' });
+    console.error('Admin auth error:', error.message);
+    res.status(401).json({ message: 'Authentication failed', code: 'AUTH_FAILED' });
   }
 };

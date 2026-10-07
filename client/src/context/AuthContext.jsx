@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { hiddenAdminLogin, verifyAdminHash, getAdminInfo, loginTeacher } from '../api/authApi';
+import { hiddenAdminLogin, verifyAdminHash, loginTeacher } from '../api/authApi';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isHiddenAdmin, setIsHiddenAdmin] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -32,16 +33,18 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('adminToken');
     const adminData = localStorage.getItem('adminData');
 
-    if (token && adminData) {
-      try {
-        const parsedData = JSON.parse(adminData);
-        setAdmin(parsedData);
-        setIsAuthenticated(true);
-        setIsHiddenAdmin(parsedData.isHiddenAdmin || false);
-      } catch (error) {
-        console.error('Invalid stored admin data');
-        logout();
-      }
+    if (!token || !adminData) return;
+
+    try {
+      const parsedData = JSON.parse(adminData);
+      setAdmin(parsedData);
+      setIsAuthenticated(true);
+      setIsHiddenAdmin(parsedData.isHiddenAdmin || false);
+      setMustChangePassword(parsedData.mustChangePassword || false);
+    } catch (error) {
+      console.error('Invalid stored admin data');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');
     }
   };
 
@@ -49,53 +52,77 @@ export const AuthProvider = ({ children }) => {
     const params = new URLSearchParams(window.location.search);
     const accessHash = params.get('access');
 
-    if (accessHash) {
-      try {
-        const response = await verifyAdminHash(accessHash);
-        if (response.valid) {
-          setIsAdminMode(true);
-          localStorage.setItem('tempAdminToken', response.tempToken);
-          toast.success('Hidden admin access verified');
-          window.history.replaceState({}, document.title, '/login');
-        } else {
-          toast.error('Invalid access hash');
-        }
-      } catch (error) {
-        toast.error('Hash verification failed');
+    if (!accessHash) return;
+
+    try {
+      const response = await verifyAdminHash(accessHash);
+      if (response.valid) {
+        setIsAdminMode(true);
+        localStorage.setItem('tempAdminToken', response.tempToken);
+        toast.success('Hidden admin access verified');
+        window.history.replaceState({}, document.title, '/login');
+      } else {
+        toast.error('Invalid access hash');
       }
+    } catch (error) {
+      toast.error('Hash verification failed');
     }
+  };
+
+  const finalizeLogin = (data, token) => {
+    localStorage.setItem('adminToken', token);
+    localStorage.setItem('adminData', JSON.stringify(data));
+    setAdmin(data);
+    setIsAuthenticated(true);
+    setIsHiddenAdmin(data.isHiddenAdmin || false);
+    setMustChangePassword(data.mustChangePassword || false);
   };
 
   const login = async (credentials) => {
     try {
       const response = await loginTeacher(credentials);
-      localStorage.setItem('adminToken', response.token);
-      localStorage.setItem('adminData', JSON.stringify(response.teacher));
-      setAdmin(response.teacher);
-      setIsAuthenticated(true);
-      setIsHiddenAdmin(false);
+      finalizeLogin(response.teacher, response.token);
       toast.success('Welcome back, ' + response.teacher.fullName);
       return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Login failed');
-      return { success: false, error: error.response?.data?.message };
+      const msg = error.response?.data?.message || 'Login failed';
+      const code = error.response?.data?.code;
+      const reason = error.response?.data?.reason || '';
+
+      if (
+        code !== 'PENDING_APPROVAL' &&
+        code !== 'REJECTED' &&
+        code !== 'SUSPENDED'
+      ) {
+        if (code === 'INACTIVE') {
+          toast.error('Your account is inactive');
+        } else {
+          toast.error(msg);
+        }
+      }
+
+      return { success: false, error: msg, code, reason };
     }
   };
 
   const hiddenLogin = async (credentials) => {
     try {
       const response = await hiddenAdminLogin(credentials);
-      localStorage.setItem('adminToken', response.token);
-      localStorage.setItem('adminData', JSON.stringify(response.admin));
-      setAdmin(response.admin);
-      setIsAuthenticated(true);
-      setIsHiddenAdmin(true);
+      finalizeLogin(response.admin, response.token);
       toast.success('Hidden admin logged in');
       return { success: true };
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Hidden admin login failed');
-      return { success: false, error: error.response?.data?.message };
+      const msg = error.response?.data?.message || 'Hidden admin login failed';
+      toast.error(msg);
+      return { success: false, error: msg };
     }
+  };
+
+  const completePasswordChange = () => {
+    const updated = { ...admin, mustChangePassword: false };
+    localStorage.setItem('adminData', JSON.stringify(updated));
+    setAdmin(updated);
+    setMustChangePassword(false);
   };
 
   const logout = () => {
@@ -106,17 +133,8 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setIsAdminMode(false);
     setIsHiddenAdmin(false);
+    setMustChangePassword(false);
     toast.success('Logged out successfully');
-  };
-
-  const refreshAdminInfo = async () => {
-    try {
-      const adminInfo = await getAdminInfo();
-      setAdmin(adminInfo);
-      localStorage.setItem('adminData', JSON.stringify(adminInfo));
-    } catch (error) {
-      console.error('Failed to refresh admin info');
-    }
   };
 
   return (
@@ -127,10 +145,11 @@ export const AuthProvider = ({ children }) => {
         loading,
         isAdminMode,
         isHiddenAdmin,
+        mustChangePassword,
         login,
         hiddenLogin,
         logout,
-        refreshAdminInfo,
+        completePasswordChange,
         setIsAdminMode,
       }}
     >

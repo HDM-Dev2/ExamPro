@@ -1,11 +1,16 @@
 const mongoose = require('mongoose');
 
 const studentSchema = new mongoose.Schema({
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
   admissionNumber: {
     type: String,
-    unique: true,
-    sparse: true,
-    trim: true
+    trim: true,
+    default: ''
   },
   fullName: {
     type: String,
@@ -19,11 +24,13 @@ const studentSchema = new mongoose.Schema({
   },
   email: {
     type: String,
+    default: '',
     trim: true,
     lowercase: true
   },
   phone: {
     type: String,
+    default: '',
     trim: true
   },
   isActive: {
@@ -39,6 +46,11 @@ const studentSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+studentSchema.index(
+  { admissionNumber: 1, adminId: 1 },
+  { unique: true, sparse: true }
+);
 
 studentSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

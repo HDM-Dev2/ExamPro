@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const scoreSchema = new mongoose.Schema({
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
   studentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Student',
@@ -11,8 +17,13 @@ const scoreSchema = new mongoose.Schema({
     ref: 'Course',
     required: true
   },
-  assessmentIndex: {
-    type: Number,
+  unitId: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  assessmentType: {
+    type: String,
+    enum: ['assignment', 'cat', 'exam'],
     required: true
   },
   score: {
@@ -30,7 +41,10 @@ const scoreSchema = new mongoose.Schema({
   }
 });
 
-scoreSchema.index({ studentId: 1, courseId: 1, assessmentIndex: 1 }, { unique: true });
+scoreSchema.index(
+  { studentId: 1, courseId: 1, unitId: 1, assessmentType: 1 },
+  { unique: true }
+);
 
 scoreSchema.pre('save', function(next) {
   this.updatedAt = Date.now();

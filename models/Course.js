@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const courseSchema = new mongoose.Schema({
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true
+  },
   courseCode: {
     type: String,
     required: true,
@@ -22,36 +28,20 @@ const courseSchema = new mongoose.Schema({
     default: 'assignment_cat_exam'
   },
   weights: {
-    assignment: {
-      type: Number,
-      default: 10
-    },
-    cat: {
-      type: Number,
-      default: 20
-    },
-    exam: {
-      type: Number,
-      default: 70
-    }
+    assignment: { type: Number, default: 10 },
+    cat: { type: Number, default: 20 },
+    exam: { type: Number, default: 70 }
   },
-  assessments: [{
-    type: {
+  units: [{
+    name: {
       type: String,
-      enum: ['assignment', 'cat', 'exam'],
-      required: true
-    },
-    number: {
-      type: Number,
-      default: 1
-    },
-    title: {
-      type: String,
+      required: true,
       trim: true
     },
-    maxScore: {
-      type: Number,
-      default: 100
+    code: {
+      type: String,
+      default: '',
+      trim: true
     },
     createdAt: {
       type: Date,
@@ -66,18 +56,9 @@ const courseSchema = new mongoose.Schema({
     },
     admissionNumber: {
       type: String,
+      default: '',
       trim: true
-    },
-    scores: [{
-      assessmentIndex: {
-        type: Number,
-        required: true
-      },
-      score: {
-        type: Number,
-        default: 0
-      }
-    }]
+    }
   }],
   isActive: {
     type: Boolean,

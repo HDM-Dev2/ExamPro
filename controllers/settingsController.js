@@ -15,42 +15,38 @@ const defaultCBCGrades = [
   { name: 'Below Expectation', minScore: 0, maxScore: 39.99, remark: 'BE' }
 ];
 
-const getDefaultSettings = (adminId) => {
-  return {
-    adminId,
-    schoolName: 'My School',
-    schoolCode: '',
-    address: '',
-    city: '',
-    state: '',
-    postalCode: '',
-    country: '',
-    phone: '',
-    email: '',
-    website: '',
-    motto: 'Excellence in Education',
-    logo: '',
-    academicYear: new Date().getFullYear().toString(),
-    term: 'Term 1',
-    passMark: 40,
-    reportFooter: '',
-    gradingSystem: 'af',
-    grades: defaultAFGrades
-  };
-};
+const getDefaultSettings = (adminId) => ({
+  adminId,
+  schoolName: 'My School',
+  schoolCode: '',
+  address: '',
+  city: '',
+  state: '',
+  postalCode: '',
+  country: '',
+  phone: '',
+  email: '',
+  website: '',
+  motto: 'Excellence in Education',
+  logo: '',
+  academicYear: new Date().getFullYear().toString(),
+  term: 'Term 1',
+  passMark: 40,
+  reportFooter: '',
+  gradingSystem: 'af',
+  grades: defaultAFGrades
+});
 
 const getSettings = async (req, res) => {
   try {
     let settings = await Settings.findOne({ adminId: req.userId });
     
     if (!settings) {
-      const defaultData = getDefaultSettings(req.userId);
-      settings = new Settings(defaultData);
+      settings = new Settings(getDefaultSettings(req.userId));
       await settings.save();
     }
     
     res.json(settings);
-    
   } catch (error) {
     console.error('Get settings error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -60,22 +56,8 @@ const getSettings = async (req, res) => {
 const updateSettings = async (req, res) => {
   try {
     const {
-      schoolName,
-      schoolCode,
-      address,
-      city,
-      state,
-      postalCode,
-      country,
-      phone,
-      email,
-      website,
-      motto,
-      logo,
-      academicYear,
-      term,
-      passMark,
-      reportFooter
+      schoolName, schoolCode, address, city, state, postalCode, country,
+      phone, email, website, motto, logo, academicYear, term, passMark, reportFooter
     } = req.body;
     
     let settings = await Settings.findOne({ adminId: req.userId });
@@ -84,27 +66,26 @@ const updateSettings = async (req, res) => {
       settings = new Settings(getDefaultSettings(req.userId));
     }
     
-    settings.schoolName = schoolName || settings.schoolName;
-    settings.schoolCode = schoolCode || settings.schoolCode;
-    settings.address = address || settings.address;
-    settings.city = city || settings.city;
-    settings.state = state || settings.state;
-    settings.postalCode = postalCode || settings.postalCode;
-    settings.country = country || settings.country;
-    settings.phone = phone || settings.phone;
-    settings.email = email || settings.email;
-    settings.website = website || settings.website;
-    settings.motto = motto || settings.motto;
-    settings.logo = logo || settings.logo;
-    settings.academicYear = academicYear || settings.academicYear;
-    settings.term = term || settings.term;
-    settings.passMark = passMark || settings.passMark;
-    settings.reportFooter = reportFooter || settings.reportFooter;
+    if (schoolName !== undefined) settings.schoolName = schoolName;
+    if (schoolCode !== undefined) settings.schoolCode = schoolCode;
+    if (address !== undefined) settings.address = address;
+    if (city !== undefined) settings.city = city;
+    if (state !== undefined) settings.state = state;
+    if (postalCode !== undefined) settings.postalCode = postalCode;
+    if (country !== undefined) settings.country = country;
+    if (phone !== undefined) settings.phone = phone;
+    if (email !== undefined) settings.email = email;
+    if (website !== undefined) settings.website = website;
+    if (motto !== undefined) settings.motto = motto;
+    if (logo !== undefined) settings.logo = logo;
+    if (academicYear !== undefined) settings.academicYear = academicYear;
+    if (term !== undefined) settings.term = term;
+    if (passMark !== undefined) settings.passMark = passMark;
+    if (reportFooter !== undefined) settings.reportFooter = reportFooter;
     
     await settings.save();
     
     res.json(settings);
-    
   } catch (error) {
     console.error('Update settings error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -121,22 +102,23 @@ const updateGradingSystem = async (req, res) => {
       settings = new Settings(getDefaultSettings(req.userId));
     }
     
-    settings.gradingSystem = gradingSystem || settings.gradingSystem;
+    if (gradingSystem) {
+      settings.gradingSystem = gradingSystem;
+      
+      if (gradingSystem === 'af') {
+        settings.grades = defaultAFGrades;
+      } else if (gradingSystem === 'cbc') {
+        settings.grades = defaultCBCGrades;
+      }
+    }
     
     if (passMark !== undefined) {
       settings.passMark = passMark;
     }
     
-    if (gradingSystem === 'af') {
-      settings.grades = defaultAFGrades;
-    } else if (gradingSystem === 'cbc') {
-      settings.grades = defaultCBCGrades;
-    }
-    
     await settings.save();
     
     res.json(settings);
-    
   } catch (error) {
     console.error('Update grading system error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -163,7 +145,6 @@ const updateGrades = async (req, res) => {
     await settings.save();
     
     res.json(settings);
-    
   } catch (error) {
     console.error('Update grades error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -184,19 +165,12 @@ const addGrade = async (req, res) => {
       settings = new Settings(getDefaultSettings(req.userId));
     }
     
-    settings.grades.push({
-      name,
-      minScore,
-      maxScore,
-      remark: remark || ''
-    });
-    
+    settings.grades.push({ name, minScore, maxScore, remark: remark || '' });
     settings.gradingSystem = 'custom';
     
     await settings.save();
     
     res.status(201).json(settings);
-    
   } catch (error) {
     console.error('Add grade error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -207,18 +181,15 @@ const deleteGrade = async (req, res) => {
   try {
     const gradeId = req.params.gradeId;
     
-    let settings = await Settings.findOne({ adminId: req.userId });
-    
+    const settings = await Settings.findOne({ adminId: req.userId });
     if (!settings) {
       return res.status(404).json({ message: 'Settings not found' });
     }
     
     settings.grades = settings.grades.filter(g => g._id.toString() !== gradeId);
-    
     await settings.save();
     
     res.json(settings);
-    
   } catch (error) {
     console.error('Delete grade error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -243,7 +214,6 @@ const uploadLogo = async (req, res) => {
     await settings.save();
     
     res.json(settings);
-    
   } catch (error) {
     console.error('Upload logo error:', error);
     res.status(500).json({ message: 'Server error' });

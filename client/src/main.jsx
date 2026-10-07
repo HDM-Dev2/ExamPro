@@ -6,6 +6,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { PlatformProvider } from './context/PlatformContext';
 import './index.css';
 
 const originalWarn = console.warn;
@@ -27,23 +28,25 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         v7_relativeSplatPath: true,
       }}
     >
-      <AuthProvider>
-        <DataProvider>
-          <SettingsProvider>
-            <App />
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 3000,
-                style: {
-                  background: '#1e293b',
-                  color: '#fff',
-                },
-              }}
-            />
-          </SettingsProvider>
-        </DataProvider>
-      </AuthProvider>
+      <PlatformProvider>
+        <AuthProvider>
+          <DataProvider>
+            <SettingsProvider>
+              <App />
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 3000,
+                  style: {
+                    background: '#1e293b',
+                    color: '#fff',
+                  },
+                }}
+              />
+            </SettingsProvider>
+          </DataProvider>
+        </AuthProvider>
+      </PlatformProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

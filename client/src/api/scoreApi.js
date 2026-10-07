@@ -5,6 +5,11 @@ export const getScoresByCourse = async (courseId) => {
   return response.data;
 };
 
+export const getScoresByUnit = async (unitId) => {
+  const response = await api.get(`/scores/unit/${unitId}`);
+  return response.data;
+};
+
 export const getScoresByStudent = async (studentId) => {
   const response = await api.get(`/scores/student/${studentId}`);
   return response.data;

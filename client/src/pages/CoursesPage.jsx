@@ -10,6 +10,7 @@ import Modal from '../components/ui/Modal';
 import Table from '../components/ui/Table';
 import Badge from '../components/ui/Badge';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import AddUnitModal from '../components/course/AddUnitModal';
 import { EXAM_TYPES, DEFAULT_WEIGHTS } from '../utils/constants';
 import { formatExamType } from '../utils/formatters';
 import toast from 'react-hot-toast';
@@ -18,7 +19,9 @@ const CoursesPage = () => {
   const { courses, classes, fetchCourses, fetchClasses, loading } = useData();
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
+  const [showAddUnit, setShowAddUnit] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
+  const [newCourse, setNewCourse] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
@@ -84,17 +87,39 @@ const CoursesPage = () => {
       if (editingCourse) {
         await courseApi.updateCourse(editingCourse._id, formData);
         toast.success('Course updated successfully');
+        setShowModal(false);
+        fetchCourses();
       } else {
-        await courseApi.createCourse(formData);
-        toast.success('Course created successfully');
+        const created = await courseApi.createCourse(formData);
+        toast.success('Course created. Now add units.');
+        setShowModal(false);
+        setNewCourse(created);
+        setShowAddUnit(true);
       }
-      setShowModal(false);
-      fetchCourses();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Operation failed');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAddUnit = async (unitData) => {
+    if (!newCourse) return;
+    try {
+      await courseApi.addUnit(newCourse._id, unitData);
+      toast.success('Unit added');
+      const updated = await courseApi.getCourseById(newCourse._id);
+      setNewCourse(updated);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add unit');
+      throw error;
+    }
+  };
+
+  const handleFinishUnits = () => {
+    setShowAddUnit(false);
+    setNewCourse(null);
+    fetchCourses();
   };
 
   const handleDelete = async () => {
@@ -110,43 +135,47 @@ const CoursesPage = () => {
     }
   };
 
-  const headers = ['Course Code', 'Course Name', 'Class', 'Exam Type', 'Assessments', 'Status', 'Actions'];
+  const headers = ['Course Code', 'Course Name', 'Class', 'Exam Type', 'Units', 'Status', 'Actions'];
 
-  const renderRow = (course) => (
-    <tr key={course._id}>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <span className="font-medium text-gray-900">{course.courseCode}</span>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-900">
-        {course.courseName}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant="info">{course.classId?.className || 'No Class'}</Badge>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant="primary">{formatExamType(course.examType)}</Badge>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-        {course.assessments?.length || 0}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant={course.isActive ? 'success' : 'danger'}>
-          {course.isActive ? 'Active' : 'Inactive'}
-        </Badge>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap space-x-2">
-        <Button variant="primary" size="sm" onClick={() => navigate(`/courses/${course._id}`)}>
-          Open
-        </Button>
-        <Button variant="secondary" size="sm" onClick={() => handleOpenModal(course)}>
-          Edit
-        </Button>
-        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(course)}>
-          Delete
-        </Button>
-      </td>
-    </tr>
-  );
+  const renderRow = (course) => {
+    const unitsCount = course.units?.length || 0;
+
+    return (
+      <tr key={course._id}>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <span className="font-medium text-gray-900">{course.courseCode}</span>
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-gray-900">
+          {course.courseName}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <Badge variant="info">{course.classId?.className || 'No Class'}</Badge>
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <Badge variant="primary">{formatExamType(course.examType)}</Badge>
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+          {unitsCount}
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap">
+          <Badge variant={course.isActive ? 'success' : 'danger'}>
+            {course.isActive ? 'Active' : 'Inactive'}
+          </Badge>
+        </td>
+        <td className="px-6 py-4 whitespace-nowrap space-x-2">
+          <Button variant="primary" size="sm" onClick={() => navigate(`/courses/${course._id}`)}>
+            Open
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => handleOpenModal(course)}>
+            Edit
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => setDeleteTarget(course)}>
+            Delete
+          </Button>
+        </td>
+      </tr>
+    );
+  };
 
   return (
     <div>
@@ -181,6 +210,7 @@ const CoursesPage = () => {
         />
       </Card>
 
+      {/* Course Create/Edit Modal */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
@@ -268,11 +298,29 @@ const CoursesPage = () => {
               Cancel
             </Button>
             <Button type="submit" isLoading={saving}>
-              {editingCourse ? 'Update' : 'Create'}
+              {editingCourse ? 'Update' : 'Create & Add Units'}
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Add Units Modal (after course creation) */}
+      {newCourse && (
+        <AddUnitModal
+          isOpen={showAddUnit}
+          onClose={handleFinishUnits}
+          onSubmit={handleAddUnit}
+          existingUnits={newCourse.units || []}
+        />
+      )}
+
+      {newCourse && showAddUnit && (
+        <div className="fixed bottom-6 right-6 z-40">
+          <Button variant="success" onClick={handleFinishUnits}>
+            Done Adding Units
+          </Button>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
