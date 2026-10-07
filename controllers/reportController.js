@@ -22,51 +22,49 @@ const buildStudentCourseReport = (course, studentScores) => {
   const requiredTypes = getRequiredTypes(course.examType);
   const unitResults = [];
   let hasCRNM = false;
-  
+
   for (const unit of course.units) {
-    const unitScores = studentScores.filter(
-      s => s.unitId.toString() === unit._id.toString()
-    );
-    
+    const unitScores = studentScores.filter((s) => s.unitId.toString() === unit._id.toString());
+
     let unitTotal = 0;
     let unitHasMissing = false;
-    
+
     for (const type of requiredTypes) {
-      const score = unitScores.find(s => s.assessmentType === type);
-      
+      const score = unitScores.find((s) => s.assessmentType === type);
+
       if (!score) {
         unitHasMissing = true;
         break;
       }
-      
+
       unitTotal += score.score;
     }
-    
+
     if (unitHasMissing) {
-      unitResults.push({ 
-        unitId: unit._id, 
-        unitName: unit.name, 
+      unitResults.push({
+        unitId: unit._id,
+        unitName: unit.name,
         unitCode: unit.code || '',
-        total: CRNM 
+        total: CRNM
       });
       hasCRNM = true;
     } else {
-      unitResults.push({ 
-        unitId: unit._id, 
-        unitName: unit.name, 
+      unitResults.push({
+        unitId: unit._id,
+        unitName: unit.name,
         unitCode: unit.code || '',
-        total: Math.round(unitTotal) 
+        total: Math.round(unitTotal)
       });
     }
   }
-  
+
   let courseFinal = CRNM;
-  
+
   if (!hasCRNM && unitResults.length > 0) {
     const sum = unitResults.reduce((acc, u) => acc + u.total, 0);
     courseFinal = Math.round(sum / unitResults.length);
   }
-  
+
   return {
     course,
     unitResults,
@@ -76,51 +74,48 @@ const buildStudentCourseReport = (course, studentScores) => {
 
 const getClassReport = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { classId } = req.params;
-    
-    const cls = await Class.findOne({ 
-      _id: classId, 
-      adminId: req.userId 
-    });
-    
+
+    const cls = await Class.findOne({ _id: classId, adminId: tenantId });
     if (!cls) {
       return res.status(404).json({ message: 'Class not found' });
     }
-    
-    const students = await Student.find({ 
-      classId, 
-      adminId: req.userId, 
-      isActive: true 
+
+    const students = await Student.find({
+      classId,
+      adminId: tenantId,
+      isActive: true
     }).sort({ fullName: 1 });
-    
-    const courses = await Course.find({ 
-      classId, 
-      adminId: req.userId, 
-      isActive: true 
+
+    const courses = await Course.find({
+      classId,
+      adminId: tenantId,
+      isActive: true
     });
-    
+
     const report = [];
-    
+
     for (const student of students) {
       const studentReport = {
         student,
         courses: []
       };
-      
+
       for (const course of courses) {
-        const scores = await Score.find({ 
-          studentId: student._id, 
-          courseId: course._id, 
-          adminId: req.userId 
+        const scores = await Score.find({
+          studentId: student._id,
+          courseId: course._id,
+          adminId: tenantId
         });
-        
+
         const result = buildStudentCourseReport(course, scores);
         studentReport.courses.push(result);
       }
-      
+
       report.push(studentReport);
     }
-    
+
     res.json({ class: cls, report });
   } catch (error) {
     console.error('Get class report error:', error);
@@ -130,36 +125,37 @@ const getClassReport = async (req, res) => {
 
 const getStudentReport = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { studentId } = req.params;
-    
-    const student = await Student.findOne({ 
-      _id: studentId, 
-      adminId: req.userId 
-    }).populate('classId', 'className');
-    
+
+    const student = await Student.findOne({ _id: studentId, adminId: tenantId }).populate(
+      'classId',
+      'className'
+    );
+
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
     }
-    
-    const courses = await Course.find({ 
-      classId: student.classId._id, 
-      adminId: req.userId, 
-      isActive: true 
+
+    const courses = await Course.find({
+      classId: student.classId._id,
+      adminId: tenantId,
+      isActive: true
     });
-    
+
     const courseReports = [];
-    
+
     for (const course of courses) {
-      const scores = await Score.find({ 
-        studentId: student._id, 
-        courseId: course._id, 
-        adminId: req.userId 
+      const scores = await Score.find({
+        studentId: student._id,
+        courseId: course._id,
+        adminId: tenantId
       });
-      
+
       const result = buildStudentCourseReport(course, scores);
       courseReports.push(result);
     }
-    
+
     res.json({ student, courseReports });
   } catch (error) {
     console.error('Get student report error:', error);
@@ -169,59 +165,59 @@ const getStudentReport = async (req, res) => {
 
 const getCourseReport = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { courseId } = req.params;
-    
-    const course = await Course.findOne({ 
-      _id: courseId, 
-      adminId: req.userId 
-    }).populate('classId', 'className');
-    
+
+    const course = await Course.findOne({ _id: courseId, adminId: tenantId }).populate(
+      'classId',
+      'className'
+    );
+
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
-    const students = await Student.find({ 
-      classId: course.classId._id, 
-      adminId: req.userId, 
-      isActive: true 
+
+    const students = await Student.find({
+      classId: course.classId._id,
+      adminId: tenantId,
+      isActive: true
     }).sort({ fullName: 1 });
-    
-    const scores = await Score.find({ 
-      courseId: course._id, 
-      adminId: req.userId 
-    });
-    
+
+    const scores = await Score.find({ courseId: course._id, adminId: tenantId });
+
     const studentSummaries = students.map((student) => {
-      const studentScores = scores.filter(s => 
-        s.studentId.toString() === student._id.toString()
+      const studentScores = scores.filter(
+        (s) => s.studentId.toString() === student._id.toString()
       );
-      
+
       const result = buildStudentCourseReport(course, studentScores);
-      
+
       return {
         student,
         unitResults: result.unitResults,
         finalScore: result.finalScore
       };
     });
-    
+
     const numericFinals = studentSummaries
-      .filter(s => s.finalScore !== CRNM)
-      .map(s => s.finalScore);
-    
+      .filter((s) => s.finalScore !== CRNM)
+      .map((s) => s.finalScore);
+
     const summary = {
       totalStudents: students.length,
-      totalCRNM: studentSummaries.filter(s => s.finalScore === CRNM).length,
-      classAverage: numericFinals.length > 0 
-        ? Math.round(numericFinals.reduce((a, b) => a + b, 0) / numericFinals.length)
-        : 0,
-      passRate: numericFinals.length > 0 
-        ? Math.round((numericFinals.filter(s => s >= 40).length / numericFinals.length) * 100)
-        : 0,
+      totalCRNM: studentSummaries.filter((s) => s.finalScore === CRNM).length,
+      classAverage:
+        numericFinals.length > 0
+          ? Math.round(numericFinals.reduce((a, b) => a + b, 0) / numericFinals.length)
+          : 0,
+      passRate:
+        numericFinals.length > 0
+          ? Math.round((numericFinals.filter((s) => s >= 40).length / numericFinals.length) * 100)
+          : 0,
       highestScore: numericFinals.length > 0 ? Math.max(...numericFinals) : 0,
       lowestScore: numericFinals.length > 0 ? Math.min(...numericFinals) : 0
     };
-    
+
     res.json({ course, summary, studentSummaries });
   } catch (error) {
     console.error('Get course report error:', error);

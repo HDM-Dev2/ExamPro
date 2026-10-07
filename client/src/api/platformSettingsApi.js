@@ -14,3 +14,8 @@ export const getPublicPlatformSettings = async () => {
   const response = await api.get('/platform-settings/public');
   return response.data;
 };
+
+export const getPlatformDashboard = async () => {
+  const response = await api.get('/platform-settings/dashboard-stats');
+  return response.data;
+};

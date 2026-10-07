@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
-import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import Spinner from '../components/ui/Spinner';
+import Alert from '../components/ui/Alert';
 import toast from 'react-hot-toast';
 
 const GRADING_SYSTEMS = [
@@ -17,13 +18,13 @@ const GRADING_SYSTEMS = [
 ];
 
 const SettingsPage = () => {
+  const { isOwner } = useAuth();
   const {
     settings,
     loading,
     fetchSettings,
     saveSettings,
     saveGradingSystem,
-    saveGrades,
     addNewGrade,
     removeGrade,
     saveLogo,
@@ -66,6 +67,8 @@ const SettingsPage = () => {
   const [saving, setSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState('');
   const fileInputRef = useRef();
+
+  const readOnly = !isOwner;
 
   useEffect(() => {
     loadSettings();
@@ -146,10 +149,14 @@ const SettingsPage = () => {
   };
 
   const handleGradingSystemChange = async (system) => {
+    if (readOnly) return;
     setGradingSystem(system);
     setSaving(true);
     try {
-      const data = await saveGradingSystem({ gradingSystem: system, passMark: reportForm.passMark });
+      const data = await saveGradingSystem({
+        gradingSystem: system,
+        passMark: reportForm.passMark,
+      });
       setGrades(data.grades || []);
     } catch (error) {
       console.error('Failed to update grading system');
@@ -215,8 +222,19 @@ const SettingsPage = () => {
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600 mt-1">Manage your school information</p>
+        <p className="text-gray-600 mt-1">
+          {readOnly ? 'View school information' : 'Manage your school information'}
+        </p>
       </div>
+
+      {readOnly && (
+        <div className="mb-6">
+          <Alert
+            type="info"
+            message="You can view settings but only the super-admin can make changes."
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="School Information" subtitle="Basic school details">
@@ -231,19 +249,21 @@ const SettingsPage = () => {
                   </svg>
                 )}
               </div>
-              <div>
-                <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                  Upload Logo
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleLogoUpload}
-                />
-                <p className="text-xs text-gray-500 mt-1">PNG, JPG, or SVG</p>
-              </div>
+              {!readOnly && (
+                <div>
+                  <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    Upload Logo
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, or SVG</p>
+                </div>
+              )}
             </div>
 
             <Input
@@ -251,18 +271,21 @@ const SettingsPage = () => {
               placeholder="Enter school name"
               value={schoolForm.schoolName}
               onChange={(e) => setSchoolForm({ ...schoolForm, schoolName: e.target.value })}
+              disabled={readOnly}
             />
             <Input
               label="School Code"
               placeholder="Enter school code"
               value={schoolForm.schoolCode}
               onChange={(e) => setSchoolForm({ ...schoolForm, schoolCode: e.target.value })}
+              disabled={readOnly}
             />
             <Input
               label="Motto"
               placeholder="Enter school motto"
               value={schoolForm.motto}
               onChange={(e) => setSchoolForm({ ...schoolForm, motto: e.target.value })}
+              disabled={readOnly}
             />
             <div className="grid grid-cols-2 gap-4">
               <Input
@@ -270,17 +293,21 @@ const SettingsPage = () => {
                 placeholder="2026"
                 value={schoolForm.academicYear}
                 onChange={(e) => setSchoolForm({ ...schoolForm, academicYear: e.target.value })}
+                disabled={readOnly}
               />
               <Input
                 label="Term"
                 placeholder="Term 1"
                 value={schoolForm.term}
                 onChange={(e) => setSchoolForm({ ...schoolForm, term: e.target.value })}
+                disabled={readOnly}
               />
             </div>
-            <Button onClick={handleSaveSchool} isLoading={saving}>
-              Save School Info
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleSaveSchool} isLoading={saving}>
+                Save School Info
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -291,6 +318,7 @@ const SettingsPage = () => {
               placeholder="Enter address"
               value={contactForm.address}
               onChange={(e) => setContactForm({ ...contactForm, address: e.target.value })}
+              disabled={readOnly}
             />
             <div className="grid grid-cols-2 gap-4">
               <Input
@@ -298,12 +326,14 @@ const SettingsPage = () => {
                 placeholder="Enter city"
                 value={contactForm.city}
                 onChange={(e) => setContactForm({ ...contactForm, city: e.target.value })}
+                disabled={readOnly}
               />
               <Input
                 label="State/Region"
                 placeholder="Enter state"
                 value={contactForm.state}
                 onChange={(e) => setContactForm({ ...contactForm, state: e.target.value })}
+                disabled={readOnly}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -312,12 +342,14 @@ const SettingsPage = () => {
                 placeholder="Enter postal code"
                 value={contactForm.postalCode}
                 onChange={(e) => setContactForm({ ...contactForm, postalCode: e.target.value })}
+                disabled={readOnly}
               />
               <Input
                 label="Country"
                 placeholder="Enter country"
                 value={contactForm.country}
                 onChange={(e) => setContactForm({ ...contactForm, country: e.target.value })}
+                disabled={readOnly}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -326,6 +358,7 @@ const SettingsPage = () => {
                 placeholder="Enter phone"
                 value={contactForm.phone}
                 onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
+                disabled={readOnly}
               />
               <Input
                 label="Email"
@@ -333,6 +366,7 @@ const SettingsPage = () => {
                 placeholder="Enter email"
                 value={contactForm.email}
                 onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                disabled={readOnly}
               />
             </div>
             <Input
@@ -340,10 +374,13 @@ const SettingsPage = () => {
               placeholder="Enter website"
               value={contactForm.website}
               onChange={(e) => setContactForm({ ...contactForm, website: e.target.value })}
+              disabled={readOnly}
             />
-            <Button onClick={handleSaveContact} isLoading={saving}>
-              Save Contact Info
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleSaveContact} isLoading={saving}>
+                Save Contact Info
+              </Button>
+            )}
           </div>
         </Card>
 
@@ -354,29 +391,38 @@ const SettingsPage = () => {
               options={GRADING_SYSTEMS}
               value={gradingSystem}
               onChange={(e) => handleGradingSystemChange(e.target.value)}
+              disabled={readOnly}
             />
-            
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Grade</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Min</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Max</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Remark</th>
-                    {gradingSystem === 'custom' && (
-                      <th className="px-3 py-2"></th>
-                    )}
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Grade
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Min
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Max
+                    </th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                      Remark
+                    </th>
+                    {!readOnly && gradingSystem === 'custom' && <th className="px-3 py-2"></th>}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {grades.map((grade) => (
                     <tr key={grade._id}>
-                      <td className="px-3 py-2 text-sm font-medium text-gray-900">{grade.name}</td>
+                      <td className="px-3 py-2 text-sm font-medium text-gray-900">
+                        {grade.name}
+                      </td>
                       <td className="px-3 py-2 text-sm text-gray-500">{grade.minScore}</td>
                       <td className="px-3 py-2 text-sm text-gray-500">{grade.maxScore}</td>
                       <td className="px-3 py-2 text-sm text-gray-500">{grade.remark}</td>
-                      {gradingSystem === 'custom' && (
+                      {!readOnly && gradingSystem === 'custom' && (
                         <td className="px-3 py-2">
                           <button
                             onClick={() => setDeleteGradeTarget(grade)}
@@ -394,7 +440,7 @@ const SettingsPage = () => {
               </table>
             </div>
 
-            {gradingSystem === 'custom' && (
+            {!readOnly && gradingSystem === 'custom' && (
               <Button variant="secondary" onClick={() => setShowAddGrade(true)}>
                 <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -413,17 +459,25 @@ const SettingsPage = () => {
               min="0"
               max="100"
               value={reportForm.passMark}
-              onChange={(e) => setReportForm({ ...reportForm, passMark: Number(e.target.value) })}
+              onChange={(e) =>
+                setReportForm({ ...reportForm, passMark: Number(e.target.value) })
+              }
+              disabled={readOnly}
             />
             <Input
               label="Report Footer Text"
               placeholder="© 2026 My School"
               value={reportForm.reportFooter}
-              onChange={(e) => setReportForm({ ...reportForm, reportFooter: e.target.value })}
+              onChange={(e) =>
+                setReportForm({ ...reportForm, reportFooter: e.target.value })
+              }
+              disabled={readOnly}
             />
-            <Button onClick={handleSaveReport} isLoading={saving}>
-              Save Report Settings
-            </Button>
+            {!readOnly && (
+              <Button onClick={handleSaveReport} isLoading={saving}>
+                Save Report Settings
+              </Button>
+            )}
           </div>
         </Card>
       </div>
@@ -448,7 +502,9 @@ const SettingsPage = () => {
               min="0"
               max="100"
               value={gradeForm.minScore}
-              onChange={(e) => setGradeForm({ ...gradeForm, minScore: Number(e.target.value) })}
+              onChange={(e) =>
+                setGradeForm({ ...gradeForm, minScore: Number(e.target.value) })
+              }
               required
             />
             <Input
@@ -457,7 +513,9 @@ const SettingsPage = () => {
               min="0"
               max="100"
               value={gradeForm.maxScore}
-              onChange={(e) => setGradeForm({ ...gradeForm, maxScore: Number(e.target.value) })}
+              onChange={(e) =>
+                setGradeForm({ ...gradeForm, maxScore: Number(e.target.value) })
+              }
               required
             />
           </div>

@@ -7,15 +7,16 @@ const CRNM = 'CRNM';
 
 const getCourses = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { classId } = req.query;
-    
-    let query = { adminId: req.userId, isActive: true };
+
+    let query = { adminId: tenantId, isActive: true };
     if (classId) query.classId = classId;
-    
+
     const courses = await Course.find(query)
       .populate('classId', 'className')
       .sort({ courseName: 1 });
-    
+
     res.json(courses);
   } catch (error) {
     console.error('Get courses error:', error);
@@ -25,26 +26,22 @@ const getCourses = async (req, res) => {
 
 const getCourseById = async (req, res) => {
   try {
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    }).populate('classId', 'className');
-    
+    const tenantId = req.tenantId;
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId })
+      .populate('classId', 'className');
+
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
-    const students = await Student.find({ 
-      classId: course.classId._id, 
-      adminId: req.userId, 
-      isActive: true 
+
+    const students = await Student.find({
+      classId: course.classId._id,
+      adminId: tenantId,
+      isActive: true
     }).sort({ fullName: 1 });
-    
-    const scores = await Score.find({ 
-      courseId: course._id, 
-      adminId: req.userId 
-    });
-    
+
+    const scores = await Score.find({ courseId: course._id, adminId: tenantId });
+
     res.json({
       ...course.toObject(),
       students,
@@ -58,18 +55,16 @@ const getCourseById = async (req, res) => {
 
 const createCourse = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { courseCode, courseName, classId, examType, weights } = req.body;
-    
-    const cls = await Class.findOne({ 
-      _id: classId, 
-      adminId: req.userId 
-    });
+
+    const cls = await Class.findOne({ _id: classId, adminId: tenantId });
     if (!cls) {
       return res.status(404).json({ message: 'Class not found' });
     }
-    
+
     const course = new Course({
-      adminId: req.userId,
+      adminId: tenantId,
       courseCode,
       courseName,
       classId,
@@ -77,7 +72,7 @@ const createCourse = async (req, res) => {
       weights: weights || { assignment: 10, cat: 20, exam: 70 },
       units: []
     });
-    
+
     await course.save();
     res.status(201).json(course);
   } catch (error) {
@@ -88,23 +83,20 @@ const createCourse = async (req, res) => {
 
 const updateCourse = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { courseCode, courseName, classId, examType, weights } = req.body;
-    
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     if (courseCode !== undefined) course.courseCode = courseCode;
     if (courseName !== undefined) course.courseName = courseName;
     if (classId !== undefined) course.classId = classId;
     if (examType !== undefined) course.examType = examType;
     if (weights !== undefined) course.weights = weights;
-    
+
     await course.save();
     res.json(course);
   } catch (error) {
@@ -115,23 +107,18 @@ const updateCourse = async (req, res) => {
 
 const deleteCourse = async (req, res) => {
   try {
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+    const tenantId = req.tenantId;
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
+
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     course.isActive = false;
     await course.save();
-    
-    await Score.deleteMany({ 
-      courseId: course._id, 
-      adminId: req.userId 
-    });
-    
+
+    await Score.deleteMany({ courseId: course._id, adminId: tenantId });
+
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
     console.error('Delete course error:', error);
@@ -141,26 +128,23 @@ const deleteCourse = async (req, res) => {
 
 const addUnit = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { name, code } = req.body;
-    
+
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Unit name is required' });
     }
-    
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     course.units.push({
       name: name.trim(),
       code: code ? code.trim() : ''
     });
-    
+
     await course.save();
     res.status(201).json(course);
   } catch (error) {
@@ -171,25 +155,22 @@ const addUnit = async (req, res) => {
 
 const updateUnit = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { name, code } = req.body;
-    
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     const unit = course.units.id(req.params.unitId);
     if (!unit) {
       return res.status(404).json({ message: 'Unit not found' });
     }
-    
+
     if (name && name.trim()) unit.name = name.trim();
     if (code !== undefined) unit.code = code ? code.trim() : '';
-    
+
     await course.save();
     res.json(course);
   } catch (error) {
@@ -200,29 +181,26 @@ const updateUnit = async (req, res) => {
 
 const deleteUnit = async (req, res) => {
   try {
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+    const tenantId = req.tenantId;
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     const unit = course.units.id(req.params.unitId);
     if (!unit) {
       return res.status(404).json({ message: 'Unit not found' });
     }
-    
+
     course.units.pull(req.params.unitId);
     await course.save();
-    
-    await Score.deleteMany({ 
-      courseId: course._id, 
+
+    await Score.deleteMany({
+      courseId: course._id,
       unitId: req.params.unitId,
-      adminId: req.userId 
+      adminId: tenantId
     });
-    
+
     res.json(course);
   } catch (error) {
     console.error('Delete unit error:', error);
@@ -232,20 +210,17 @@ const deleteUnit = async (req, res) => {
 
 const addManualStudent = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { studentName, admissionNumber } = req.body;
-    
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     course.manualStudents.push({ studentName, admissionNumber });
     await course.save();
-    
+
     res.status(201).json(course);
   } catch (error) {
     console.error('Add manual student error:', error);
@@ -255,24 +230,21 @@ const addManualStudent = async (req, res) => {
 
 const deleteManualStudent = async (req, res) => {
   try {
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+    const tenantId = req.tenantId;
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
+
     const studentIndex = parseInt(req.params.studentIndex);
-    
+
     if (isNaN(studentIndex) || studentIndex < 0 || studentIndex >= course.manualStudents.length) {
       return res.status(400).json({ message: 'Invalid student index' });
     }
-    
+
     course.manualStudents.splice(studentIndex, 1);
     await course.save();
-    
+
     res.json(course);
   } catch (error) {
     console.error('Delete manual student error:', error);
@@ -282,11 +254,11 @@ const deleteManualStudent = async (req, res) => {
 
 const getCourseScores = async (req, res) => {
   try {
-    const scores = await Score.find({ 
-      courseId: req.params.id, 
-      adminId: req.userId 
-    }).sort({ assessmentType: 1 });
-    
+    const tenantId = req.tenantId;
+    const scores = await Score.find({ courseId: req.params.id, adminId: tenantId }).sort({
+      assessmentType: 1
+    });
+
     res.json(scores);
   } catch (error) {
     console.error('Get course scores error:', error);
@@ -296,70 +268,66 @@ const getCourseScores = async (req, res) => {
 
 const saveBulkScores = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { unitId, assessmentType, scores } = req.body;
-    
+
     if (!unitId) {
       return res.status(400).json({ message: 'Unit ID is required' });
     }
-    
+
     if (!['assignment', 'cat', 'exam'].includes(assessmentType)) {
       return res.status(400).json({ message: 'Invalid assessment type' });
     }
-    
+
     if (!scores || !Array.isArray(scores) || scores.length === 0) {
       return res.status(400).json({ message: 'No scores provided' });
     }
-    
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    });
-    
+
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId });
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
-    const unitExists = course.units.some(u => u._id.toString() === unitId.toString());
+
+    const unitExists = course.units.some((u) => u._id.toString() === unitId.toString());
     if (!unitExists) {
       return res.status(404).json({ message: 'Unit not found in course' });
     }
-    
+
     const maxScore = course.weights[assessmentType];
-    
+
     const results = [];
     const errors = [];
-    
+
     for (const scoreData of scores) {
       try {
         const { studentId, score } = scoreData;
-        
         const numericScore = Number(score);
-        
+
         if (isNaN(numericScore) || numericScore < 0) {
           errors.push({ studentId, message: 'Invalid score' });
           continue;
         }
-        
+
         if (numericScore > maxScore) {
           errors.push({ studentId, message: `Score must not exceed ${maxScore}` });
           continue;
         }
-        
+
         let existingScore = await Score.findOne({
           studentId,
           courseId: course._id,
           unitId,
           assessmentType,
-          adminId: req.userId
+          adminId: tenantId
         });
-        
+
         if (existingScore) {
           existingScore.score = numericScore;
           await existingScore.save();
           results.push(existingScore);
         } else {
           const newScore = new Score({
-            adminId: req.userId,
+            adminId: tenantId,
             studentId,
             courseId: course._id,
             unitId,
@@ -373,7 +341,7 @@ const saveBulkScores = async (req, res) => {
         errors.push({ scoreData, message: error.message });
       }
     }
-    
+
     res.status(201).json({
       saved: results,
       errors,
@@ -403,26 +371,24 @@ const calculateStudentResults = (course, studentScores) => {
   const requiredTypes = getRequiredTypes(course.examType);
   const unitResults = [];
   let hasCRNM = false;
-  
+
   for (const unit of course.units) {
-    const unitScores = studentScores.filter(
-      s => s.unitId.toString() === unit._id.toString()
-    );
-    
+    const unitScores = studentScores.filter((s) => s.unitId.toString() === unit._id.toString());
+
     let unitTotal = 0;
     let unitHasMissing = false;
-    
+
     for (const type of requiredTypes) {
-      const score = unitScores.find(s => s.assessmentType === type);
-      
+      const score = unitScores.find((s) => s.assessmentType === type);
+
       if (!score) {
         unitHasMissing = true;
         break;
       }
-      
+
       unitTotal += score.score;
     }
-    
+
     if (unitHasMissing) {
       unitResults.push({ unitId: unit._id, unitName: unit.name, total: CRNM });
       hasCRNM = true;
@@ -430,53 +396,49 @@ const calculateStudentResults = (course, studentScores) => {
       unitResults.push({ unitId: unit._id, unitName: unit.name, total: Math.round(unitTotal) });
     }
   }
-  
+
   let courseFinal = CRNM;
-  
+
   if (!hasCRNM && unitResults.length > 0) {
     const sum = unitResults.reduce((acc, u) => acc + u.total, 0);
     courseFinal = Math.round(sum / unitResults.length);
   }
-  
+
   return { unitResults, courseFinal };
 };
 
 const getCourseSummary = async (req, res) => {
   try {
-    const course = await Course.findOne({ 
-      _id: req.params.id, 
-      adminId: req.userId 
-    }).populate('classId', 'className');
-    
+    const tenantId = req.tenantId;
+    const course = await Course.findOne({ _id: req.params.id, adminId: tenantId })
+      .populate('classId', 'className');
+
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
-    
-    const students = await Student.find({ 
-      classId: course.classId._id, 
-      adminId: req.userId, 
-      isActive: true 
+
+    const students = await Student.find({
+      classId: course.classId._id,
+      adminId: tenantId,
+      isActive: true
     }).sort({ fullName: 1 });
-    
-    const scores = await Score.find({ 
-      courseId: course._id, 
-      adminId: req.userId 
-    });
-    
+
+    const scores = await Score.find({ courseId: course._id, adminId: tenantId });
+
     const studentSummaries = students.map((student) => {
-      const studentScores = scores.filter(s => 
-        s.studentId.toString() === student._id.toString()
+      const studentScores = scores.filter(
+        (s) => s.studentId.toString() === student._id.toString()
       );
-      
+
       const results = calculateStudentResults(course, studentScores);
-      
+
       return {
         student,
         unitResults: results.unitResults,
         courseFinal: results.courseFinal
       };
     });
-    
+
     res.json({ course, studentSummaries });
   } catch (error) {
     console.error('Get course summary error:', error);

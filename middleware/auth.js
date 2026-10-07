@@ -19,7 +19,10 @@ module.exports = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(decoded.userId).select('_id role status isActive mustChangePassword isHiddenAdmin');
+    const user = await User.findById(decoded.userId).select(
+      '_id role status isActive mustChangePassword isHiddenAdmin parentAdminId'
+    );
+
     if (!user) {
       return res.status(401).json({ message: 'User not found', code: 'AUTH_FAILED' });
     }
@@ -38,6 +41,9 @@ module.exports = async (req, res, next) => {
     req.userId = user._id;
     req.role = user.role;
     req.isHiddenAdmin = user.isHiddenAdmin || false;
+    req.isOwner = user.role === 'admin' && !user.parentAdminId;
+    req.parentAdminId = user.parentAdminId || user._id;
+    req.tenantId = user.parentAdminId || user._id;
     req.mustChangePassword = user.mustChangePassword || false;
 
     next();

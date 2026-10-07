@@ -14,13 +14,14 @@ import CoursesPage from './pages/CoursesPage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
+import StaffPage from './pages/StaffPage';
 import SuperAdminPage from './pages/SuperAdminPage';
 import PlatformSettingsPage from './pages/PlatformSettingsPage';
 import PendingUsersPage from './pages/PendingUsersPage';
 import Spinner from './components/ui/Spinner';
 
 const App = () => {
-  const { isAuthenticated, isHiddenAdmin, mustChangePassword, loading } = useAuth();
+  const { isAuthenticated, isHiddenAdmin, isOwner, mustChangePassword, loading } = useAuth();
 
   if (loading) {
     return (
@@ -60,6 +61,8 @@ const App = () => {
         <Route path="courses/:courseId" element={<CourseDetailPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+
+        {isOwner && <Route path="staff" element={<StaffPage />} />}
 
         {isHiddenAdmin && (
           <>

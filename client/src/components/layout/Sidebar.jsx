@@ -4,7 +4,7 @@ import { usePlatform } from '../../context/PlatformContext';
 import { useSettings } from '../../context/SettingsContext';
 
 const Sidebar = ({ isOpen, onClose }) => {
-  const { isHiddenAdmin } = useAuth();
+  const { isHiddenAdmin, isOwner } = useAuth();
   const { platform } = usePlatform();
   const { settings } = useSettings();
 
@@ -17,6 +17,10 @@ const Sidebar = ({ isOpen, onClose }) => {
     { name: 'Settings', path: '/settings', icon: IconSettings },
   ];
 
+  const ownerMenuItems = [
+    { name: 'Staff', path: '/staff', icon: IconStaff },
+  ];
+
   const hiddenMenuItems = [
     { name: 'Pending Users', path: '/pending-users', icon: IconPending },
     { name: 'Super Admin', path: '/super-admin', icon: IconShield },
@@ -26,30 +30,59 @@ const Sidebar = ({ isOpen, onClose }) => {
   return (
     <>
       {isOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden" onClick={onClose} />
+        <div
+          className="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden"
+          onClick={onClose}
+        />
       )}
 
-      <aside className={`fixed inset-y-0 left-0 w-64 bg-dark-200 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      <aside
+        className={`fixed inset-y-0 left-0 w-64 bg-dark-200 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         <div className="flex items-center justify-between px-4 py-6 border-b border-gray-700">
           <div className="flex items-center space-x-2">
             {platform.logo ? (
-              <img src={platform.logo} alt="Logo" className="h-8 w-8 rounded-lg object-cover" />
+              <img
+                src={platform.logo}
+                alt="Logo"
+                className="h-8 w-8 rounded-lg object-cover"
+              />
             ) : null}
             <div>
-              <h1 className="text-xl font-bold text-blue-500 truncate">{platform.appName}</h1>
-              <p className="text-xs text-gray-400 mt-0.5 truncate">{settings?.schoolName || platform.appTagline}</p>
+              <h1 className="text-xl font-bold text-blue-500 truncate">
+                {platform.appName}
+              </h1>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">
+                {settings?.schoolName || platform.appTagline}
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="lg:hidden text-gray-400 hover:text-white">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <button
+            onClick={onClose}
+            className="lg:hidden text-gray-400 hover:text-white"
+          >
+            <svg
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
-        <nav className="mt-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+        <nav
+          className="mt-6 overflow-y-auto"
+          style={{ maxHeight: 'calc(100vh - 180px)' }}
+        >
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
@@ -58,19 +91,54 @@ const Sidebar = ({ isOpen, onClose }) => {
               onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 }`
               }
             >
-              <span className="mr-3"><item.icon /></span>
+              <span className="mr-3">
+                <item.icon />
+              </span>
               {item.name}
             </NavLink>
           ))}
 
+          {isOwner && ownerMenuItems.length > 0 && (
+            <>
+              <div className="px-4 py-2 mt-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">
+                  Manage
+                </p>
+              </div>
+              {ownerMenuItems.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    }`
+                  }
+                >
+                  <span className="mr-3">
+                    <item.icon />
+                  </span>
+                  {item.name}
+                </NavLink>
+              ))}
+            </>
+          )}
+
           {isHiddenAdmin && (
             <>
               <div className="px-4 py-2 mt-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Hidden Access</p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">
+                  Hidden Access
+                </p>
               </div>
               {hiddenMenuItems.map((item) => (
                 <NavLink
@@ -79,11 +147,15 @@ const Sidebar = ({ isOpen, onClose }) => {
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-                      isActive ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      isActive
+                        ? 'bg-red-600 text-white'
+                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                     }`
                   }
                 >
-                  <span className="mr-3"><item.icon /></span>
+                  <span className="mr-3">
+                    <item.icon />
+                  </span>
                   {item.name}
                 </NavLink>
               ))}
@@ -93,7 +165,8 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
           <p className="text-xs text-gray-400 text-center truncate">
-            {platform.footerText || `© ${new Date().getFullYear()} ${platform.appName}`}
+            {platform.footerText ||
+              `© ${new Date().getFullYear()} ${platform.appName}`}
           </p>
         </div>
       </aside>
@@ -128,6 +201,12 @@ const IconCourses = () => (
 const IconReports = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
+const IconStaff = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
   </svg>
 );
 

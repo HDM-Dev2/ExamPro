@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAdminMode, setIsAdminMode] = useState(false);
   const [isHiddenAdmin, setIsHiddenAdmin] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
 
   useEffect(() => {
@@ -40,6 +41,9 @@ export const AuthProvider = ({ children }) => {
       setAdmin(parsedData);
       setIsAuthenticated(true);
       setIsHiddenAdmin(parsedData.isHiddenAdmin || false);
+      setIsOwner(
+        parsedData.role === 'admin' && !parsedData.parentAdminId
+      );
       setMustChangePassword(parsedData.mustChangePassword || false);
     } catch (error) {
       console.error('Invalid stored admin data');
@@ -75,6 +79,7 @@ export const AuthProvider = ({ children }) => {
     setAdmin(data);
     setIsAuthenticated(true);
     setIsHiddenAdmin(data.isHiddenAdmin || false);
+    setIsOwner(data.role === 'admin' && !data.parentAdminId);
     setMustChangePassword(data.mustChangePassword || false);
   };
 
@@ -133,6 +138,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     setIsAdminMode(false);
     setIsHiddenAdmin(false);
+    setIsOwner(false);
     setMustChangePassword(false);
     toast.success('Logged out successfully');
   };
@@ -145,6 +151,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         isAdminMode,
         isHiddenAdmin,
+        isOwner,
         mustChangePassword,
         login,
         hiddenLogin,

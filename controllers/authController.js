@@ -148,7 +148,9 @@ const verifyAdminHash = async (req, res) => {
 
 const getAdminInfo = async (req, res) => {
   try {
-    const admin = await User.findById(req.userId).select('-password -adminHash -resetToken -resetTokenExpires');
+    const admin = await User.findById(req.userId).select(
+      '-password -adminHash -resetToken -resetTokenExpires'
+    );
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
@@ -173,19 +175,32 @@ const loginTeacher = async (req, res) => {
     }
 
     if (user.status === 'pending') {
-      return res.status(403).json({ message: 'Your account is pending approval', code: 'PENDING_APPROVAL' });
+      return res.status(403).json({
+        message: 'Your account is pending approval',
+        code: 'PENDING_APPROVAL'
+      });
     }
 
     if (user.status === 'rejected') {
-      return res.status(403).json({ message: 'Your registration was rejected', code: 'REJECTED', reason: user.rejectedReason || '' });
+      return res.status(403).json({
+        message: 'Your registration was rejected',
+        code: 'REJECTED',
+        reason: user.rejectedReason || ''
+      });
     }
 
     if (user.status === 'suspended') {
-      return res.status(403).json({ message: 'Your account is suspended', code: 'SUSPENDED' });
+      return res.status(403).json({
+        message: 'Your account is suspended',
+        code: 'SUSPENDED'
+      });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({ message: 'Your account is inactive', code: 'INACTIVE' });
+      return res.status(403).json({
+        message: 'Your account is inactive',
+        code: 'INACTIVE'
+      });
     }
 
     const isMatch = await user.comparePassword(password);
@@ -198,7 +213,12 @@ const loginTeacher = async (req, res) => {
     await user.save();
 
     const token = jwt.sign(
-      { userId: user._id, role: user.role, isHiddenAdmin: false },
+      {
+        userId: user._id,
+        role: user.role,
+        isHiddenAdmin: false,
+        parentAdminId: user.parentAdminId || null
+      },
       process.env.JWT_SECRET,
       { expiresIn: adminConfig.TEACHER_JWT_EXPIRY }
     );
@@ -212,6 +232,7 @@ const loginTeacher = async (req, res) => {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
+        parentAdminId: user.parentAdminId || null,
         mustChangePassword: user.mustChangePassword || false
       }
     });
@@ -240,7 +261,10 @@ const selfRegister = async (req, res) => {
     }
 
     const existingUser = await User.findOne({
-      $or: [{ email: email.toLowerCase().trim() }, { username: email.toLowerCase().trim() }]
+      $or: [
+        { email: email.toLowerCase().trim() },
+        { username: email.toLowerCase().trim() }
+      ]
     });
 
     if (existingUser) {
@@ -318,11 +342,7 @@ const forgotPassword = async (req, res) => {
       isHiddenAdmin: false
     });
 
-    if (!user) {
-      return res.json({ message: genericMessage });
-    }
-
-    if (user.status !== 'active') {
+    if (!user || user.status !== 'active') {
       return res.json({ message: genericMessage });
     }
 
@@ -449,7 +469,12 @@ const approveUser = async (req, res) => {
 
     res.json({
       message: 'User approved',
-      user: { id: user._id, email: user.email, fullName: user.fullName, status: user.status }
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        status: user.status
+      }
     });
   } catch (error) {
     console.error('Approve user error:', error);
@@ -487,7 +512,12 @@ const rejectUser = async (req, res) => {
 
     res.json({
       message: 'User rejected',
-      user: { id: user._id, email: user.email, fullName: user.fullName, status: user.status }
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        status: user.status
+      }
     });
   } catch (error) {
     console.error('Reject user error:', error);
@@ -521,8 +551,12 @@ const createAdminUser = async (req, res) => {
     }
 
     const existingUser = await User.findOne({
-      $or: [{ username: identifier.toLowerCase() }, { email: identifier.toLowerCase() }]
+      $or: [
+        { username: identifier.toLowerCase() },
+        { email: identifier.toLowerCase() }
+      ]
     });
+
     if (existingUser) {
       return res.status(400).json({ message: 'Email already registered' });
     }
@@ -587,7 +621,9 @@ const createAdminUser = async (req, res) => {
     }
 
     res.status(201).json({
-      message: emailSent ? 'Admin created and credentials sent via email' : 'Admin created but email not sent',
+      message: emailSent
+        ? 'Admin created and credentials sent via email'
+        : 'Admin created but email not sent',
       admin: {
         id: admin._id,
         username: admin.username || admin.email,
@@ -619,9 +655,13 @@ const updateAdminUser = async (req, res) => {
     const identifier = email || username;
     if (identifier) {
       const existingUser = await User.findOne({
-        $or: [{ username: identifier.toLowerCase() }, { email: identifier.toLowerCase() }],
+        $or: [
+          { username: identifier.toLowerCase() },
+          { email: identifier.toLowerCase() }
+        ],
         _id: { $ne: admin._id }
       });
+
       if (existingUser) {
         return res.status(400).json({ message: 'Email already registered' });
       }
@@ -722,7 +762,9 @@ const resetAdminPassword = async (req, res) => {
     }
 
     res.json({
-      message: emailSent ? 'Password reset and sent via email' : 'Password reset but email not sent',
+      message: emailSent
+        ? 'Password reset and sent via email'
+        : 'Password reset but email not sent',
       emailSent,
       emailError,
       tempPassword: !emailSent ? tempPassword : undefined
@@ -805,6 +847,267 @@ const changeOwnPassword = async (req, res) => {
   }
 };
 
+const getStaff = async (req, res) => {
+  try {
+    const staff = await User.find({
+      parentAdminId: req.userId,
+      role: 'staff'
+    })
+      .select('-password -adminHash -resetToken -resetTokenExpires')
+      .sort({ createdAt: -1 });
+
+    res.json(staff);
+  } catch (error) {
+    console.error('Get staff error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const createStaff = async (req, res) => {
+  try {
+    const { fullName, email, phone, password } = req.body;
+
+    if (!fullName || !email) {
+      return res.status(400).json({ message: 'Full name and email are required' });
+    }
+
+    const existingUser = await User.findOne({
+      $or: [
+        { email: email.toLowerCase().trim() },
+        { username: email.toLowerCase().trim() }
+      ]
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already registered' });
+    }
+
+    let finalPassword = password;
+    let generatedTempPassword = null;
+
+    if (!finalPassword) {
+      finalPassword = generateTempPassword();
+      generatedTempPassword = finalPassword;
+    }
+
+    const staff = new User({
+      email: email.toLowerCase().trim(),
+      password: finalPassword,
+      fullName: fullName.trim(),
+      phone: phone || '',
+      role: 'staff',
+      parentAdminId: req.userId,
+      status: 'active',
+      isHiddenAdmin: false,
+      registrationSource: 'admin',
+      mustChangePassword: Boolean(generatedTempPassword)
+    });
+
+    await staff.save();
+
+    let emailSent = false;
+    let emailError = null;
+
+    if (staff.email && generatedTempPassword) {
+      try {
+        const loginUrl = `${process.env.APP_URL || 'http://localhost:5000'}/login`;
+        await emailService.sendWelcomeAdmin({
+          to: staff.email,
+          fullName: staff.fullName,
+          email: staff.email,
+          tempPassword: generatedTempPassword,
+          loginUrl
+        });
+        emailSent = true;
+        staff.temporaryPasswordSentAt = new Date();
+        await staff.save();
+      } catch (err) {
+        emailError = err.message;
+        console.error('Failed to send staff welcome email:', err.message);
+      }
+    }
+
+    res.status(201).json({
+      message: emailSent
+        ? 'Staff created and credentials sent via email'
+        : 'Staff created but email not sent',
+      staff: {
+        id: staff._id,
+        email: staff.email,
+        fullName: staff.fullName,
+        role: staff.role,
+        status: staff.status
+      },
+      emailSent,
+      emailError,
+      tempPassword: !emailSent ? generatedTempPassword : undefined
+    });
+  } catch (error) {
+    console.error('Create staff error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const updateStaff = async (req, res) => {
+  try {
+    const { fullName, email, phone } = req.body;
+
+    const staff = await User.findOne({
+      _id: req.params.id,
+      parentAdminId: req.userId,
+      role: 'staff'
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    if (email && email.toLowerCase().trim() !== staff.email) {
+      const existing = await User.findOne({
+        $or: [
+          { email: email.toLowerCase().trim() },
+          { username: email.toLowerCase().trim() }
+        ],
+        _id: { $ne: staff._id }
+      });
+
+      if (existing) {
+        return res.status(400).json({ message: 'Email already registered' });
+      }
+
+      staff.email = email.toLowerCase().trim();
+    }
+
+    if (fullName) staff.fullName = fullName.trim();
+    if (phone !== undefined) staff.phone = phone;
+
+    await staff.save();
+
+    res.json({
+      message: 'Staff updated',
+      staff: {
+        id: staff._id,
+        email: staff.email,
+        fullName: staff.fullName,
+        phone: staff.phone,
+        role: staff.role
+      }
+    });
+  } catch (error) {
+    console.error('Update staff error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const toggleStaffStatus = async (req, res) => {
+  try {
+    const staff = await User.findOne({
+      _id: req.params.id,
+      parentAdminId: req.userId,
+      role: 'staff'
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    staff.isActive = !staff.isActive;
+    if (!staff.isActive) {
+      staff.status = 'suspended';
+    } else if (staff.status === 'suspended') {
+      staff.status = 'active';
+    }
+
+    await staff.save();
+
+    res.json({
+      message: `Staff ${staff.isActive ? 'activated' : 'suspended'}`,
+      staff: {
+        id: staff._id,
+        email: staff.email,
+        isActive: staff.isActive,
+        status: staff.status
+      }
+    });
+  } catch (error) {
+    console.error('Toggle staff status error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const resetStaffPassword = async (req, res) => {
+  try {
+    const staff = await User.findOne({
+      _id: req.params.id,
+      parentAdminId: req.userId,
+      role: 'staff'
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    const tempPassword = generateTempPassword();
+    staff.password = tempPassword;
+    staff.mustChangePassword = true;
+    staff.temporaryPasswordSentAt = new Date();
+    staff.failedAttempts = 0;
+    staff.lastFailedAttempt = null;
+    await staff.save();
+
+    let emailSent = false;
+    let emailError = null;
+
+    if (staff.email) {
+      try {
+        const loginUrl = `${process.env.APP_URL || 'http://localhost:5000'}/login`;
+        await emailService.sendPasswordReset({
+          to: staff.email,
+          fullName: staff.fullName,
+          email: staff.email,
+          tempPassword,
+          loginUrl,
+          resetBy: 'an administrator'
+        });
+        emailSent = true;
+      } catch (err) {
+        emailError = err.message;
+      }
+    }
+
+    res.json({
+      message: emailSent
+        ? 'Password reset and sent via email'
+        : 'Password reset but email not sent',
+      emailSent,
+      emailError,
+      tempPassword: !emailSent ? tempPassword : undefined
+    });
+  } catch (error) {
+    console.error('Reset staff password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const deleteStaff = async (req, res) => {
+  try {
+    const staff = await User.findOneAndDelete({
+      _id: req.params.id,
+      parentAdminId: req.userId,
+      role: 'staff'
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff not found' });
+    }
+
+    res.json({ message: 'Staff removed' });
+  } catch (error) {
+    console.error('Delete staff error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   hiddenAdminRegister,
   hiddenAdminLogin,
@@ -824,5 +1127,11 @@ module.exports = {
   resetAdminPassword,
   resetAdminAttempts,
   deleteAdminUser,
-  changeOwnPassword
+  changeOwnPassword,
+  getStaff,
+  createStaff,
+  updateStaff,
+  toggleStaffStatus,
+  resetStaffPassword,
+  deleteStaff
 };

@@ -39,13 +39,14 @@ const getDefaultSettings = (adminId) => ({
 
 const getSettings = async (req, res) => {
   try {
-    let settings = await Settings.findOne({ adminId: req.userId });
-    
+    const tenantId = req.tenantId;
+    let settings = await Settings.findOne({ adminId: tenantId });
+
     if (!settings) {
-      settings = new Settings(getDefaultSettings(req.userId));
+      settings = new Settings(getDefaultSettings(tenantId));
       await settings.save();
     }
-    
+
     res.json(settings);
   } catch (error) {
     console.error('Get settings error:', error);
@@ -55,17 +56,32 @@ const getSettings = async (req, res) => {
 
 const updateSettings = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const {
-      schoolName, schoolCode, address, city, state, postalCode, country,
-      phone, email, website, motto, logo, academicYear, term, passMark, reportFooter
+      schoolName,
+      schoolCode,
+      address,
+      city,
+      state,
+      postalCode,
+      country,
+      phone,
+      email,
+      website,
+      motto,
+      logo,
+      academicYear,
+      term,
+      passMark,
+      reportFooter
     } = req.body;
-    
-    let settings = await Settings.findOne({ adminId: req.userId });
-    
+
+    let settings = await Settings.findOne({ adminId: tenantId });
+
     if (!settings) {
-      settings = new Settings(getDefaultSettings(req.userId));
+      settings = new Settings(getDefaultSettings(tenantId));
     }
-    
+
     if (schoolName !== undefined) settings.schoolName = schoolName;
     if (schoolCode !== undefined) settings.schoolCode = schoolCode;
     if (address !== undefined) settings.address = address;
@@ -82,9 +98,8 @@ const updateSettings = async (req, res) => {
     if (term !== undefined) settings.term = term;
     if (passMark !== undefined) settings.passMark = passMark;
     if (reportFooter !== undefined) settings.reportFooter = reportFooter;
-    
+
     await settings.save();
-    
     res.json(settings);
   } catch (error) {
     console.error('Update settings error:', error);
@@ -94,30 +109,27 @@ const updateSettings = async (req, res) => {
 
 const updateGradingSystem = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { gradingSystem, passMark } = req.body;
-    
-    let settings = await Settings.findOne({ adminId: req.userId });
-    
+
+    let settings = await Settings.findOne({ adminId: tenantId });
     if (!settings) {
-      settings = new Settings(getDefaultSettings(req.userId));
+      settings = new Settings(getDefaultSettings(tenantId));
     }
-    
+
     if (gradingSystem) {
       settings.gradingSystem = gradingSystem;
-      
+
       if (gradingSystem === 'af') {
         settings.grades = defaultAFGrades;
       } else if (gradingSystem === 'cbc') {
         settings.grades = defaultCBCGrades;
       }
     }
-    
-    if (passMark !== undefined) {
-      settings.passMark = passMark;
-    }
-    
+
+    if (passMark !== undefined) settings.passMark = passMark;
+
     await settings.save();
-    
     res.json(settings);
   } catch (error) {
     console.error('Update grading system error:', error);
@@ -127,23 +139,22 @@ const updateGradingSystem = async (req, res) => {
 
 const updateGrades = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { grades } = req.body;
-    
+
     if (!grades || !Array.isArray(grades)) {
       return res.status(400).json({ message: 'Grades array is required' });
     }
-    
-    let settings = await Settings.findOne({ adminId: req.userId });
-    
+
+    let settings = await Settings.findOne({ adminId: tenantId });
     if (!settings) {
-      settings = new Settings(getDefaultSettings(req.userId));
+      settings = new Settings(getDefaultSettings(tenantId));
     }
-    
+
     settings.grades = grades;
     settings.gradingSystem = 'custom';
-    
+
     await settings.save();
-    
     res.json(settings);
   } catch (error) {
     console.error('Update grades error:', error);
@@ -153,23 +164,22 @@ const updateGrades = async (req, res) => {
 
 const addGrade = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { name, minScore, maxScore, remark } = req.body;
-    
+
     if (!name || minScore === undefined || maxScore === undefined) {
       return res.status(400).json({ message: 'Name, minScore, and maxScore are required' });
     }
-    
-    let settings = await Settings.findOne({ adminId: req.userId });
-    
+
+    let settings = await Settings.findOne({ adminId: tenantId });
     if (!settings) {
-      settings = new Settings(getDefaultSettings(req.userId));
+      settings = new Settings(getDefaultSettings(tenantId));
     }
-    
+
     settings.grades.push({ name, minScore, maxScore, remark: remark || '' });
     settings.gradingSystem = 'custom';
-    
+
     await settings.save();
-    
     res.status(201).json(settings);
   } catch (error) {
     console.error('Add grade error:', error);
@@ -179,16 +189,17 @@ const addGrade = async (req, res) => {
 
 const deleteGrade = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const gradeId = req.params.gradeId;
-    
-    const settings = await Settings.findOne({ adminId: req.userId });
+
+    const settings = await Settings.findOne({ adminId: tenantId });
     if (!settings) {
       return res.status(404).json({ message: 'Settings not found' });
     }
-    
-    settings.grades = settings.grades.filter(g => g._id.toString() !== gradeId);
+
+    settings.grades = settings.grades.filter((g) => g._id.toString() !== gradeId);
     await settings.save();
-    
+
     res.json(settings);
   } catch (error) {
     console.error('Delete grade error:', error);
@@ -198,21 +209,21 @@ const deleteGrade = async (req, res) => {
 
 const uploadLogo = async (req, res) => {
   try {
+    const tenantId = req.tenantId;
     const { logo } = req.body;
-    
+
     if (!logo) {
       return res.status(400).json({ message: 'Logo data is required' });
     }
-    
-    let settings = await Settings.findOne({ adminId: req.userId });
-    
+
+    let settings = await Settings.findOne({ adminId: tenantId });
     if (!settings) {
-      settings = new Settings(getDefaultSettings(req.userId));
+      settings = new Settings(getDefaultSettings(tenantId));
     }
-    
+
     settings.logo = logo;
     await settings.save();
-    
+
     res.json(settings);
   } catch (error) {
     console.error('Upload logo error:', error);

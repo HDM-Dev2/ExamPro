@@ -37,8 +37,14 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['admin', 'teacher'],
+    enum: ['admin', 'staff', 'teacher'],
     default: 'admin'
+  },
+  parentAdminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+    index: true
   },
   status: {
     type: String,
