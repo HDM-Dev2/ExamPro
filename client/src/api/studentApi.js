@@ -25,6 +25,11 @@ export const createBulkStudents = async (bulkData) => {
   return response.data;
 };
 
+export const addBulkStudents = async (classId, students) => {
+  const response = await api.post('/students/bulk-add', { classId, students });
+  return response.data;
+};
+
 export const updateStudent = async (id, studentData) => {
   const response = await api.put(`/students/${id}`, studentData);
   return response.data;

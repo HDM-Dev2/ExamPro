@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as classApi from '../api/classApi';
 import * as departmentApi from '../api/departmentApi';
@@ -73,23 +73,14 @@ const MarksPage = () => {
     }
   };
 
-  const departmentOptions = departments.map((d) => ({
-    value: d._id,
-    label: d.name,
-  }));
-
-  const classOptions = classes.map((c) => ({
-    value: c._id,
-    label: c.className,
-  }));
+  const departmentOptions = departments.map((d) => ({ value: d._id, label: d.name }));
+  const classOptions = classes.map((c) => ({ value: c._id, label: c.className }));
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Marks Entry</h1>
-        <p className="text-gray-600 mt-1">
-          Select a department and class to enter marks
-        </p>
+        <p className="text-gray-600 mt-1">Select a department and class to enter marks</p>
       </div>
 
       <Card className="mb-6">
@@ -117,21 +108,10 @@ const MarksPage = () => {
       {!selectedClass && !loadingClass && (
         <Card>
           <div className="text-center py-12 text-gray-400">
-            <svg
-              className="mx-auto h-16 w-16 mb-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
+            <svg className="mx-auto h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <p className="text-lg">Select a class to begin</p>
-            <p className="text-sm mt-1">Choose a department first to filter classes</p>
           </div>
         </Card>
       )}
@@ -141,39 +121,21 @@ const MarksPage = () => {
           <Card className="mb-6">
             <div className="flex justify-between items-start">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {currentClass.className}
-                </h2>
+                <h2 className="text-xl font-bold text-gray-900">{currentClass.className}</h2>
                 <div className="flex items-center space-x-2 mt-2">
-                  <Badge variant="primary">
-                    {currentClass.departmentId?.name}
-                  </Badge>
-                  {currentClass.level && (
-                    <Badge variant="info">Level {currentClass.level}</Badge>
-                  )}
-                  <Badge variant="success">
-                    {currentClass.units?.length || 0} Units
-                  </Badge>
-                  <Badge variant="warning">
-                    {currentClass.students?.length || 0} Students
-                  </Badge>
+                  <Badge variant="primary">{currentClass.departmentId?.name}</Badge>
+                  {currentClass.courseId?.name && <Badge variant="info">{currentClass.courseId.name}</Badge>}
+                  {currentClass.level && <Badge variant="info">Level {currentClass.level}</Badge>}
+                  <Badge variant="success">{currentClass.units?.length || 0} Units</Badge>
+                  <Badge variant="warning">{currentClass.students?.length || 0} Students</Badge>
                 </div>
               </div>
-              <Button
-                variant="secondary"
-                onClick={() => navigate(`/classes/${currentClass._id}`)}
-              >
-                Manage Class
-              </Button>
+              <Button variant="secondary" onClick={() => navigate(`/classes/${currentClass._id}`)}>Manage Class</Button>
             </div>
           </Card>
 
           {(!currentClass.units || currentClass.units.length === 0) && (
-            <Alert
-              type="warning"
-              title="No units"
-              message="This class has no units yet. Add units in the class setup page first."
-            />
+            <Alert type="warning" title="No units" message="This class has no units yet." />
           )}
 
           {currentClass.units?.length > 0 && (
@@ -189,26 +151,14 @@ const MarksPage = () => {
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <p className="font-bold text-gray-900">{unit.name}</p>
-                        <code className="text-xs text-gray-500 bg-gray-50 px-1 py-0.5 rounded">
-                          {unit.code}
-                        </code>
+                        <code className="text-xs text-gray-500 bg-gray-50 px-1 py-0.5 rounded">{unit.code}</code>
                       </div>
                       <Badge variant="info">{unit.formativeCount} Form</Badge>
                     </div>
                     <div className="flex items-center justify-center text-sm font-medium text-blue-600 mt-2">
                       Enter Marks
-                      <svg
-                        className="h-4 w-4 ml-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M9 5l7 7-7 7"
-                        />
+                      <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </div>
                   </button>

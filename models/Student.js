@@ -9,8 +9,8 @@ const studentSchema = new mongoose.Schema({
   },
   admissionNumber: {
     type: String,
-    trim: true,
-    default: ''
+    required: true,
+    trim: true
   },
   fullName: {
     type: String,
@@ -43,7 +43,10 @@ const studentSchema = new mongoose.Schema({
 
 studentSchema.index(
   { admissionNumber: 1, adminId: 1 },
-  { unique: true, sparse: true }
+  {
+    unique: true,
+    partialFilterExpression: { isActive: true }
+  }
 );
 
 studentSchema.pre('save', function(next) {
