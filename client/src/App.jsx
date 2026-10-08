@@ -9,6 +9,7 @@ import PendingApprovalPage from './pages/PendingApprovalPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import Dashboard from './pages/Dashboard';
 import DepartmentsPage from './pages/DepartmentsPage';
+import DepartmentDetailPage from './pages/DepartmentDetailPage';
 import ClassesPage from './pages/ClassesPage';
 import ClassDetailPage from './pages/ClassDetailPage';
 import MarksPage from './pages/MarksPage';
@@ -58,6 +59,7 @@ const App = () => {
       >
         <Route index element={<Dashboard />} />
         <Route path="departments" element={<DepartmentsPage />} />
+        <Route path="departments/:id" element={<DepartmentDetailPage />} />
         <Route path="classes" element={<ClassesPage />} />
         <Route path="classes/:classId" element={<ClassDetailPage />} />
         <Route path="marks" element={<MarksPage />} />

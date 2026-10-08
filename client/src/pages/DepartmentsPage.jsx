@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as departmentApi from '../api/departmentApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -11,6 +12,7 @@ import Spinner from '../components/ui/Spinner';
 import toast from 'react-hot-toast';
 
 const DepartmentsPage = () => {
+  const navigate = useNavigate();
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -75,18 +77,29 @@ const DepartmentsPage = () => {
       setDeleteTarget(null);
       load();
     } catch (error) {
-      toast.error('Failed to delete');
+      toast.error(error.response?.data?.message || 'Failed to delete');
     }
   };
 
   if (loading) return <Spinner size="lg" className="py-20" />;
 
-  const headers = ['Name', 'Status', 'Actions'];
+  const headers = ['Name', 'Courses', 'Classes', 'Status', 'Actions'];
 
   const renderRow = (dept) => (
     <tr key={dept._id}>
       <td className="px-6 py-4 whitespace-nowrap">
-        <span className="font-medium text-gray-900">{dept.name}</span>
+        <button
+          onClick={() => navigate(`/departments/${dept._id}`)}
+          className="font-medium text-blue-600 hover:text-blue-800 hover:underline"
+        >
+          {dept.name}
+        </button>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <Badge variant="primary">{dept.courseCount || 0}</Badge>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <Badge variant="info">{dept.classCount || 0}</Badge>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <Badge variant={dept.isActive ? 'success' : 'danger'}>
@@ -94,6 +107,13 @@ const DepartmentsPage = () => {
         </Badge>
       </td>
       <td className="px-6 py-4 whitespace-nowrap space-x-2">
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() => navigate(`/departments/${dept._id}`)}
+        >
+          Open
+        </Button>
         <Button variant="secondary" size="sm" onClick={() => openEdit(dept)}>
           Edit
         </Button>
@@ -109,7 +129,7 @@ const DepartmentsPage = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Departments</h1>
-          <p className="text-gray-600 mt-1">Manage departments</p>
+          <p className="text-gray-600 mt-1">Manage departments and their courses</p>
         </div>
         <Button onClick={openCreate}>
           <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">

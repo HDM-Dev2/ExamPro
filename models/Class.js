@@ -40,6 +40,12 @@ const classSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    default: null,
+    index: true
+  },
   level: {
     type: Number,
     default: null

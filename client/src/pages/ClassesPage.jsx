@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import * as classApi from '../api/classApi';
 import * as departmentApi from '../api/departmentApi';
+import * as courseApi from '../api/courseApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -15,8 +16,10 @@ import toast from 'react-hot-toast';
 
 const ClassesPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -25,6 +28,7 @@ const ClassesPage = () => {
   const [form, setForm] = useState({
     className: '',
     departmentId: '',
+    courseId: '',
     level: '',
   });
   const [saving, setSaving] = useState(false);
@@ -38,6 +42,14 @@ const ClassesPage = () => {
     loadClasses();
   }, [selectedDepartment]);
 
+  useEffect(() => {
+    if (form.departmentId) {
+      loadCourses(form.departmentId);
+    } else {
+      setCourses([]);
+    }
+  }, [form.departmentId]);
+
   const loadDepartments = async () => {
     try {
       const data = await departmentApi.getDepartments();
@@ -47,10 +59,23 @@ const ClassesPage = () => {
     }
   };
 
+  const loadCourses = async (departmentId) => {
+    try {
+      const data = await courseApi.getCourses({ departmentId });
+      setCourses(data);
+    } catch (error) {
+      toast.error('Failed to load courses');
+    }
+  };
+
   const loadClasses = async () => {
     setLoading(true);
     try {
-      const params = selectedDepartment ? { departmentId: selectedDepartment } : {};
+      const params = {};
+      if (selectedDepartment) params.departmentId = selectedDepartment;
+      const courseIdParam = searchParams.get('courseId');
+      if (courseIdParam) params.courseId = courseIdParam;
+
       const data = await classApi.getClasses(params);
       setClasses(data);
     } catch (error) {
@@ -65,6 +90,11 @@ const ClassesPage = () => {
     label: d.name,
   }));
 
+  const courseOptions = courses.map((c) => ({
+    value: c._id,
+    label: c.name,
+  }));
+
   const levelOptions = [
     { value: '4', label: 'Level 4' },
     { value: '5', label: 'Level 5' },
@@ -73,7 +103,7 @@ const ClassesPage = () => {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ className: '', departmentId: '', level: '' });
+    setForm({ className: '', departmentId: '', courseId: '', level: '' });
     setShowModal(true);
   };
 
@@ -82,6 +112,7 @@ const ClassesPage = () => {
     setForm({
       className: cls.className,
       departmentId: cls.departmentId?._id || cls.departmentId || '',
+      courseId: cls.courseId?._id || cls.courseId || '',
       level: cls.level ? String(cls.level) : '',
     });
     setShowModal(true);
@@ -95,11 +126,17 @@ const ClassesPage = () => {
       return;
     }
 
+    if (!form.courseId) {
+      toast.error('Please select a course');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
         className: form.className,
         departmentId: form.departmentId,
+        courseId: form.courseId,
         level: Number(form.level),
       };
 
@@ -131,7 +168,7 @@ const ClassesPage = () => {
     }
   };
 
-  const headers = ['Class Name', 'Department', 'Level', 'Students', 'Units', 'Status', 'Actions'];
+  const headers = ['Class Name', 'Department', 'Course', 'Level', 'Students', 'Units', 'Status', 'Actions'];
 
   const renderRow = (cls) => (
     <tr key={cls._id}>
@@ -140,6 +177,13 @@ const ClassesPage = () => {
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <Badge variant="primary">{cls.departmentId?.name || '-'}</Badge>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        {cls.courseId?.name ? (
+          <Badge variant="info">{cls.courseId.name}</Badge>
+        ) : (
+          <span className="text-xs text-gray-400 italic">Not assigned</span>
+        )}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-gray-600">
         {cls.level ? `Level ${cls.level}` : '-'}
@@ -174,7 +218,7 @@ const ClassesPage = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Classes</h1>
-          <p className="text-gray-600 mt-1">Manage classes and their units</p>
+          <p className="text-gray-600 mt-1">Manage classes, courses, and their units</p>
         </div>
         <Button onClick={openCreate}>
           <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -208,6 +252,7 @@ const ClassesPage = () => {
         isOpen={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? 'Edit Class' : 'Add Class'}
+        size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <Select
@@ -215,7 +260,18 @@ const ClassesPage = () => {
             placeholder="Select department"
             options={departmentOptions}
             value={form.departmentId}
-            onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+            onChange={(e) =>
+              setForm({ ...form, departmentId: e.target.value, courseId: '' })
+            }
+            required
+          />
+          <Select
+            label="Course"
+            placeholder={form.departmentId ? 'Select course' : 'Select department first'}
+            options={courseOptions}
+            value={form.courseId}
+            onChange={(e) => setForm({ ...form, courseId: e.target.value })}
+            disabled={!form.departmentId}
             required
           />
           <Input

@@ -1,4 +1,6 @@
 const Department = require('../models/Department');
+const Course = require('../models/Course');
+const Class = require('../models/Class');
 
 const getDepartments = async (req, res) => {
   try {
@@ -8,7 +10,23 @@ const getDepartments = async (req, res) => {
       isActive: true
     }).sort({ name: 1 });
 
-    res.json(departments);
+    const withCounts = await Promise.all(
+      departments.map(async (dept) => {
+        const courseCount = await Course.countDocuments({
+          departmentId: dept._id,
+          adminId: tenantId,
+          isActive: true
+        });
+        const classCount = await Class.countDocuments({
+          departmentId: dept._id,
+          adminId: tenantId,
+          isActive: true
+        });
+        return { ...dept.toObject(), courseCount, classCount };
+      })
+    );
+
+    res.json(withCounts);
   } catch (error) {
     console.error('Get departments error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -27,7 +45,24 @@ const getDepartmentById = async (req, res) => {
       return res.status(404).json({ message: 'Department not found' });
     }
 
-    res.json(department);
+    const courses = await Course.find({
+      departmentId: department._id,
+      adminId: tenantId,
+      isActive: true
+    }).sort({ name: 1 });
+
+    const coursesWithCounts = await Promise.all(
+      courses.map(async (course) => {
+        const classCount = await Class.countDocuments({
+          courseId: course._id,
+          adminId: tenantId,
+          isActive: true
+        });
+        return { ...course.toObject(), classCount };
+      })
+    );
+
+    res.json({ ...department.toObject(), courses: coursesWithCounts });
   } catch (error) {
     console.error('Get department error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -109,6 +144,18 @@ const deleteDepartment = async (req, res) => {
 
     if (!department) {
       return res.status(404).json({ message: 'Department not found' });
+    }
+
+    const courseCount = await Course.countDocuments({
+      departmentId: department._id,
+      adminId: tenantId,
+      isActive: true
+    });
+
+    if (courseCount > 0) {
+      return res.status(400).json({
+        message: `Cannot delete department — ${courseCount} course(s) still linked`
+      });
     }
 
     department.isActive = false;
