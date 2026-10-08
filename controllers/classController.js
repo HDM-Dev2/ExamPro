@@ -17,7 +17,7 @@ const getClasses = async (req, res) => {
     }
 
     const classes = await Class.find(query)
-      .populate('departmentId', 'name code')
+      .populate('departmentId', 'name')
       .sort({ className: 1 });
 
     const classesWithCount = await Promise.all(
@@ -25,12 +25,12 @@ const getClasses = async (req, res) => {
         const studentCount = await Student.countDocuments({
           classId: cls._id,
           adminId: tenantId,
-          isActive: true
+          isActive: true,
         });
         return {
           ...cls.toObject(),
           studentCount,
-          unitCount: cls.units.length
+          unitCount: cls.units.length,
         };
       })
     );
@@ -47,8 +47,8 @@ const getClassById = async (req, res) => {
     const tenantId = req.tenantId;
     const cls = await Class.findOne({
       _id: req.params.id,
-      adminId: tenantId
-    }).populate('departmentId', 'name code');
+      adminId: tenantId,
+    }).populate('departmentId', 'name');
 
     if (!cls) {
       return res.status(404).json({ message: 'Class not found' });
@@ -65,7 +65,7 @@ const getClassById = async (req, res) => {
     const students = await Student.find({
       classId: cls._id,
       adminId: tenantId,
-      isActive: true
+      isActive: true,
     }).sort({ fullName: 1 });
 
     res.json({ ...cls.toObject(), students });
@@ -93,12 +93,14 @@ const createClass = async (req, res) => {
       req.departments.length > 0 &&
       !req.departments.includes(departmentId.toString())
     ) {
-      return res.status(403).json({ message: 'You can only create classes in your departments' });
+      return res
+        .status(403)
+        .json({ message: 'You can only create classes in your departments' });
     }
 
     const department = await Department.findOne({
       _id: departmentId,
-      adminId: tenantId
+      adminId: tenantId,
     });
     if (!department) {
       return res.status(404).json({ message: 'Department not found' });
@@ -106,7 +108,7 @@ const createClass = async (req, res) => {
 
     const existing = await Class.findOne({
       className: className.trim(),
-      adminId: tenantId
+      adminId: tenantId,
     });
     if (existing) {
       return res.status(400).json({ message: 'Class already exists' });
@@ -118,7 +120,7 @@ const createClass = async (req, res) => {
       departmentId,
       level: level || null,
       description: description || '',
-      academicYear: academicYear || undefined
+      academicYear: academicYear || undefined,
     });
 
     await cls.save();
@@ -136,7 +138,7 @@ const updateClass = async (req, res) => {
 
     const cls = await Class.findOne({
       _id: req.params.id,
-      adminId: tenantId
+      adminId: tenantId,
     });
 
     if (!cls) {
@@ -155,7 +157,7 @@ const updateClass = async (req, res) => {
       const existing = await Class.findOne({
         className: className.trim(),
         adminId: tenantId,
-        _id: { $ne: cls._id }
+        _id: { $ne: cls._id },
       });
       if (existing) {
         return res.status(400).json({ message: 'Class name already exists' });
@@ -169,12 +171,14 @@ const updateClass = async (req, res) => {
         req.departments.length > 0 &&
         !req.departments.includes(departmentId.toString())
       ) {
-        return res.status(403).json({ message: 'Cannot move class to a different department' });
+        return res
+          .status(403)
+          .json({ message: 'Cannot move class to a different department' });
       }
 
       const department = await Department.findOne({
         _id: departmentId,
-        adminId: tenantId
+        adminId: tenantId,
       });
       if (!department) {
         return res.status(404).json({ message: 'Department not found' });
@@ -199,7 +203,7 @@ const deleteClass = async (req, res) => {
     const tenantId = req.tenantId;
     const cls = await Class.findOne({
       _id: req.params.id,
-      adminId: tenantId
+      adminId: tenantId,
     });
 
     if (!cls) {
@@ -241,7 +245,7 @@ const addUnit = async (req, res) => {
 
     const cls = await Class.findOne({
       _id: req.params.id,
-      adminId: tenantId
+      adminId: tenantId,
     });
 
     if (!cls) {
@@ -260,13 +264,15 @@ const addUnit = async (req, res) => {
       (u) => u.code.toLowerCase() === code.trim().toLowerCase()
     );
     if (existing) {
-      return res.status(400).json({ message: 'Unit code already exists in this class' });
+      return res
+        .status(400)
+        .json({ message: 'Unit code already exists in this class' });
     }
 
     cls.units.push({
       name: name.trim(),
       code: code.trim(),
-      formativeCount: formativeCount === 4 ? 4 : 3
+      formativeCount: formativeCount === 4 ? 4 : 3,
     });
 
     await cls.save();
@@ -284,7 +290,7 @@ const updateUnit = async (req, res) => {
 
     const cls = await Class.findOne({
       _id: req.params.id,
-      adminId: tenantId
+      adminId: tenantId,
     });
 
     if (!cls) {
@@ -311,7 +317,9 @@ const updateUnit = async (req, res) => {
           u.code.toLowerCase() === code.trim().toLowerCase()
       );
       if (existing) {
-        return res.status(400).json({ message: 'Unit code already exists in this class' });
+        return res
+          .status(400)
+          .json({ message: 'Unit code already exists in this class' });
       }
       unit.code = code.trim();
     }
@@ -335,7 +343,7 @@ const deleteUnit = async (req, res) => {
 
     const cls = await Class.findOne({
       _id: req.params.id,
-      adminId: tenantId
+      adminId: tenantId,
     });
 
     if (!cls) {
@@ -361,7 +369,7 @@ const deleteUnit = async (req, res) => {
     await Score.deleteMany({
       classId: cls._id,
       unitId: req.params.unitId,
-      adminId: tenantId
+      adminId: tenantId,
     });
 
     res.json(cls);
@@ -379,5 +387,5 @@ module.exports = {
   deleteClass,
   addUnit,
   updateUnit,
-  deleteUnit
+  deleteUnit,
 };

@@ -16,7 +16,7 @@ const EXPORT_HEADERS = [
   { key: 'department', label: 'Department' },
   { key: 'level', label: 'Level' },
   { key: 'phone', label: 'Phone' },
-  { key: 'status', label: 'Status' }
+  { key: 'status', label: 'Status' },
 ];
 
 const buildStudentRows = (students) => {
@@ -28,7 +28,7 @@ const buildStudentRows = (students) => {
     department: s.classId?.departmentId?.name || '',
     level: s.classId?.level || '',
     phone: s.phone || '',
-    status: s.isActive ? 'Active' : 'Inactive'
+    status: s.isActive ? 'Active' : 'Inactive',
   }));
 };
 
@@ -37,7 +37,7 @@ const applyEOFilter = async (req, query) => {
     const classIds = await Class.find({
       adminId: req.tenantId,
       departmentId: { $in: req.departments },
-      isActive: true
+      isActive: true,
     }).distinct('_id');
     query.classId = { $in: classIds };
   }
@@ -57,7 +57,7 @@ const getStudents = async (req, res) => {
       const classIds = await Class.find({
         adminId: tenantId,
         departmentId,
-        isActive: true
+        isActive: true,
       }).distinct('_id');
       query.classId = { $in: classIds };
     }
@@ -67,7 +67,7 @@ const getStudents = async (req, res) => {
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: 'i' } },
-        { admissionNumber: { $regex: search, $options: 'i' } }
+        { admissionNumber: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -75,7 +75,7 @@ const getStudents = async (req, res) => {
       .populate({
         path: 'classId',
         select: 'className departmentId level',
-        populate: { path: 'departmentId', select: 'name code' }
+        populate: { path: 'departmentId', select: 'name' },
       })
       .sort({ fullName: 1 });
 
@@ -99,7 +99,7 @@ const exportStudents = async (req, res) => {
       const classIds = await Class.find({
         adminId: tenantId,
         departmentId,
-        isActive: true
+        isActive: true,
       }).distinct('_id');
       query.classId = { $in: classIds };
     }
@@ -109,7 +109,7 @@ const exportStudents = async (req, res) => {
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: 'i' } },
-        { admissionNumber: { $regex: search, $options: 'i' } }
+        { admissionNumber: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -117,7 +117,7 @@ const exportStudents = async (req, res) => {
       .populate({
         path: 'classId',
         select: 'className departmentId level',
-        populate: { path: 'departmentId', select: 'name code' }
+        populate: { path: 'departmentId', select: 'name' },
       })
       .sort({ fullName: 1 });
 
@@ -127,8 +127,14 @@ const exportStudents = async (req, res) => {
 
     if (format === 'xlsx') {
       const buffer = buildXLSX(EXPORT_HEADERS, rows, 'Students');
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}.xlsx"`
+      );
       return res.send(buffer);
     }
 
@@ -139,7 +145,7 @@ const exportStudents = async (req, res) => {
       if (departmentId) {
         const dept = await Department.findOne({
           _id: departmentId,
-          adminId: tenantId
+          adminId: tenantId,
         });
         departmentName = dept?.name || '';
       }
@@ -147,17 +153,23 @@ const exportStudents = async (req, res) => {
       const buffer = await buildStudentsPDF({
         students,
         settings,
-        departmentName
+        departmentName,
       });
 
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${filename}.pdf"`
+      );
       return res.send(buffer);
     }
 
     const csv = buildCSV(EXPORT_HEADERS, rows);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}.csv"`
+    );
     res.send(csv);
   } catch (error) {
     console.error('Export students error:', error);
@@ -193,7 +205,11 @@ const importStudents = async (req, res) => {
 
     let rawRows;
     try {
-      rawRows = parseFileBuffer(req.file.buffer, req.file.mimetype, req.file.originalname);
+      rawRows = parseFileBuffer(
+        req.file.buffer,
+        req.file.mimetype,
+        req.file.originalname
+      );
     } catch (parseError) {
       return res.status(400).json({ message: parseError.message });
     }
@@ -230,7 +246,7 @@ const importStudents = async (req, res) => {
           const existing = await Student.findOne({
             admissionNumber,
             adminId: tenantId,
-            isActive: true
+            isActive: true,
           });
 
           if (existing) {
@@ -244,7 +260,7 @@ const importStudents = async (req, res) => {
           admissionNumber: admissionNumber || undefined,
           fullName,
           classId,
-          phone: phone || ''
+          phone: phone || '',
         });
 
         await student.save();
@@ -261,7 +277,7 @@ const importStudents = async (req, res) => {
       skipped: skipped.length,
       errors: errors.length,
       skippedRows: skipped,
-      errorRows: errors
+      errorRows: errors,
     });
   } catch (error) {
     console.error('Import students error:', error);
@@ -272,12 +288,14 @@ const importStudents = async (req, res) => {
 const getStudentById = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const student = await Student.findOne({ _id: req.params.id, adminId: tenantId })
-      .populate({
-        path: 'classId',
-        select: 'className departmentId level',
-        populate: { path: 'departmentId', select: 'name code' }
-      });
+    const student = await Student.findOne({
+      _id: req.params.id,
+      adminId: tenantId,
+    }).populate({
+      path: 'classId',
+      select: 'className departmentId level',
+      populate: { path: 'departmentId', select: 'name' },
+    });
 
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
@@ -296,7 +314,7 @@ const getStudentsByClass = async (req, res) => {
     const students = await Student.find({
       classId: req.params.classId,
       adminId: tenantId,
-      isActive: true
+      isActive: true,
     }).sort({ fullName: 1 });
 
     res.json(students);
@@ -328,10 +346,12 @@ const createStudent = async (req, res) => {
       const existing = await Student.findOne({
         admissionNumber,
         adminId: tenantId,
-        isActive: true
+        isActive: true,
       });
       if (existing) {
-        return res.status(400).json({ message: 'Admission number already exists' });
+        return res
+          .status(400)
+          .json({ message: 'Admission number already exists' });
       }
     }
 
@@ -340,7 +360,7 @@ const createStudent = async (req, res) => {
       admissionNumber,
       fullName,
       classId,
-      phone
+      phone,
     });
 
     await student.save();
@@ -376,7 +396,7 @@ const createBulkStudents = async (req, res) => {
           const existing = await Student.findOne({
             admissionNumber,
             adminId: tenantId,
-            isActive: true
+            isActive: true,
           });
           if (existing) {
             errors.push({ admissionNumber, message: 'Already exists' });
@@ -389,7 +409,7 @@ const createBulkStudents = async (req, res) => {
           admissionNumber,
           fullName,
           classId,
-          phone
+          phone,
         });
 
         await student.save();
@@ -403,7 +423,7 @@ const createBulkStudents = async (req, res) => {
       created: createdStudents,
       errors,
       totalCreated: createdStudents.length,
-      totalErrors: errors.length
+      totalErrors: errors.length,
     });
   } catch (error) {
     console.error('Bulk create students error:', error);
@@ -416,7 +436,10 @@ const updateStudent = async (req, res) => {
     const tenantId = req.tenantId;
     const { admissionNumber, fullName, classId, phone } = req.body;
 
-    const student = await Student.findOne({ _id: req.params.id, adminId: tenantId });
+    const student = await Student.findOne({
+      _id: req.params.id,
+      adminId: tenantId,
+    });
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
     }
@@ -426,10 +449,12 @@ const updateStudent = async (req, res) => {
         admissionNumber,
         adminId: tenantId,
         isActive: true,
-        _id: { $ne: student._id }
+        _id: { $ne: student._id },
       });
       if (existing) {
-        return res.status(400).json({ message: 'Admission number already exists' });
+        return res
+          .status(400)
+          .json({ message: 'Admission number already exists' });
       }
       student.admissionNumber = admissionNumber;
     }
@@ -449,7 +474,10 @@ const updateStudent = async (req, res) => {
 const deleteStudent = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const student = await Student.findOne({ _id: req.params.id, adminId: tenantId });
+    const student = await Student.findOne({
+      _id: req.params.id,
+      adminId: tenantId,
+    });
 
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
@@ -476,5 +504,5 @@ module.exports = {
   updateStudent,
   deleteStudent,
   exportStudents,
-  importStudents
+  importStudents,
 };

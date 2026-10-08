@@ -37,35 +37,24 @@ const getDepartmentById = async (req, res) => {
 const createDepartment = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const { name, code } = req.body;
+    const { name } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ message: 'Department name is required' });
     }
 
-    if (!code || !code.trim()) {
-      return res.status(400).json({ message: 'Department code is required' });
-    }
-
     const existing = await Department.findOne({
       adminId: tenantId,
-      $or: [
-        { name: name.trim() },
-        { code: code.trim() }
-      ]
+      name: name.trim()
     });
 
     if (existing) {
-      if (existing.name === name.trim()) {
-        return res.status(400).json({ message: 'Department name already exists' });
-      }
-      return res.status(400).json({ message: 'Department code already exists' });
+      return res.status(400).json({ message: 'Department name already exists' });
     }
 
     const department = new Department({
       adminId: tenantId,
-      name: name.trim(),
-      code: code.trim()
+      name: name.trim()
     });
 
     await department.save();
@@ -79,7 +68,7 @@ const createDepartment = async (req, res) => {
 const updateDepartment = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const { name, code } = req.body;
+    const { name } = req.body;
 
     const department = await Department.findOne({
       _id: req.params.id,
@@ -100,18 +89,6 @@ const updateDepartment = async (req, res) => {
         return res.status(400).json({ message: 'Department name already exists' });
       }
       department.name = name.trim();
-    }
-
-    if (code && code.trim() !== department.code) {
-      const existing = await Department.findOne({
-        adminId: tenantId,
-        code: code.trim(),
-        _id: { $ne: department._id }
-      });
-      if (existing) {
-        return res.status(400).json({ message: 'Department code already exists' });
-      }
-      department.code = code.trim();
     }
 
     await department.save();

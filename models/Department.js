@@ -12,11 +12,6 @@ const departmentSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  code: {
-    type: String,
-    required: true,
-    trim: true
-  },
   isActive: {
     type: Boolean,
     default: true
@@ -32,7 +27,6 @@ const departmentSchema = new mongoose.Schema({
 });
 
 departmentSchema.index({ name: 1, adminId: 1 }, { unique: true });
-departmentSchema.index({ code: 1, adminId: 1 }, { unique: true });
 
 departmentSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
