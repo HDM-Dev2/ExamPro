@@ -93,8 +93,7 @@ const DepartmentDetailPage = () => {
   };
 
   const handleImport = async (file) => {
-    const result = await courseApi.importCourses(id, file);
-    return result;
+    return await courseApi.importCourses(id, file);
   };
 
   const handleExport = async (format) => {
@@ -139,12 +138,8 @@ const DepartmentDetailPage = () => {
         </div>
         <div className="flex items-center space-x-2">
           <ExportMenu onExport={handleExport} disabled={courses.length === 0} />
-          <Button variant="secondary" onClick={() => setShowImport(true)}>
-            Import
-          </Button>
-          <Button variant="secondary" onClick={() => setShowBulk(true)}>
-            Bulk Add
-          </Button>
+          <Button variant="secondary" onClick={() => setShowImport(true)}>Import</Button>
+          <Button variant="secondary" onClick={() => setShowBulk(true)}>Bulk Add</Button>
           <Button onClick={openCreate}>
             <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -155,11 +150,7 @@ const DepartmentDetailPage = () => {
       </div>
 
       {courses.length === 0 && (
-        <Alert
-          type="info"
-          title="No courses yet"
-          message="Add your first course to this department."
-        />
+        <Alert type="info" title="No courses yet" message="Add your first course to this department." />
       )}
 
       {courses.length > 0 && (
@@ -170,27 +161,17 @@ const DepartmentDetailPage = () => {
                 <div>
                   <p className="font-bold text-gray-900">{course.name}</p>
                   {course.code && (
-                    <code className="text-xs text-gray-500 bg-gray-50 px-1 py-0.5 rounded">
-                      {course.code}
-                    </code>
+                    <code className="text-xs text-gray-500 bg-gray-50 px-1 py-0.5 rounded">{course.code}</code>
                   )}
                 </div>
                 <Badge variant="primary">{course.classCount || 0} Classes</Badge>
               </div>
               <div className="flex space-x-2 pt-3 border-t">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => navigate(`/classes?courseId=${course._id}`)}
-                >
+                <Button variant="secondary" size="sm" onClick={() => navigate(`/classes?courseId=${course._id}`)}>
                   View Classes
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => openEdit(course)}>
-                  Edit
-                </Button>
-                <Button variant="danger" size="sm" onClick={() => setDeleteTarget(course)}>
-                  Delete
-                </Button>
+                <Button variant="ghost" size="sm" onClick={() => openEdit(course)}>Edit</Button>
+                <Button variant="danger" size="sm" onClick={() => setDeleteTarget(course)}>Delete</Button>
               </div>
             </div>
           ))}
@@ -206,16 +187,10 @@ const DepartmentDetailPage = () => {
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
           />
-          <Input
-            label="Code (optional)"
-            value={form.code}
-            onChange={(e) => setForm({ ...form, code: e.target.value })}
-          />
+          <Input label="Code (optional)" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
           <div className="flex justify-end space-x-3">
             <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
-            <Button type="submit" isLoading={saving}>
-              {editing ? 'Update' : 'Create'}
-            </Button>
+            <Button type="submit" isLoading={saving}>{editing ? 'Update' : 'Create'}</Button>
           </div>
         </form>
       </Modal>
@@ -225,7 +200,7 @@ const DepartmentDetailPage = () => {
         onClose={() => setShowBulk(false)}
         onSubmit={handleBulkAdd}
         title="Bulk Add Courses"
-        formatHint="Format: name, code (code optional) — one per line"
+        formatHint="Format: name, code (code optional) - one per line"
         placeholder={`Web Development, WD101\nNetworking, NET201\nDatabase Admin`}
         submitLabel="Add Courses"
       />
@@ -236,16 +211,6 @@ const DepartmentDetailPage = () => {
         onSubmit={handleImport}
         title="Import Courses"
         formatHint="Columns: name, code (code optional)"
-        templateDownload={() => {
-          const csv = 'name,code\nWeb Development,WD101\nNetworking,NET201\n';
-          const blob = new Blob([csv], { type: 'text/csv' });
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = 'courses-template.csv';
-          link.click();
-          window.URL.revokeObjectURL(url);
-        }}
         submitLabel="Import Courses"
       />
 

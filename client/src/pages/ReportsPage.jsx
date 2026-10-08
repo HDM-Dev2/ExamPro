@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import * as classApi from '../api/classApi';
 import * as reportApi from '../api/reportApi';
@@ -47,7 +47,7 @@ const ReportsPage = () => {
 
   const classOptions = classes.map((cls) => ({
     value: cls._id,
-    label: `${cls.className}${cls.departmentId?.name ? ` â€” ${cls.departmentId.name}` : ''}`,
+    label: cls.className,
   }));
 
   const handleGenerate = async () => {
@@ -115,7 +115,7 @@ const ReportsPage = () => {
       printReport({
         content,
         settings,
-        title: `Student Report â€” ${selectedStudentReport?.student?.fullName || ''}`,
+        title: `Student Report - ${selectedStudentReport?.student?.fullName || ''}`,
       });
     } catch (error) {
       toast.error(error.message);
@@ -219,7 +219,7 @@ const ReportsPage = () => {
                     return (
                       <td key={unit._id}>
                         {ur?.missing ? (
-                          <span className="text-red-600 font-semibold text-xs">â€”</span>
+                          <span className="text-red-600 font-semibold text-xs">-</span>
                         ) : (
                           <div>
                             <span className="font-semibold">{ur?.average ?? '-'}</span>
@@ -330,7 +330,7 @@ const ReportsPage = () => {
                           <span className="font-medium">{m.unitName}</span>
                           <span className="text-gray-500"> ({m.unitCode})</span>
                           <span className="text-red-600 ml-1">
-                            â€” Formative{m.missingFormatives.length > 1 ? 's' : ''}{' '}
+                            - Formative{m.missingFormatives.length > 1 ? 's' : ''}{' '}
                             {m.missingFormatives.join(', ')}
                           </span>
                         </div>
@@ -355,7 +355,7 @@ const ReportsPage = () => {
       <Modal
         isOpen={showStudentModal}
         onClose={() => setShowStudentModal(false)}
-        title={`Student Report â€” ${student.fullName}`}
+        title={`Student Report - ${student.fullName}`}
         size="lg"
       >
         <div ref={studentReportRef}>

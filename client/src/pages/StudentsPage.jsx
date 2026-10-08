@@ -319,7 +319,7 @@ const StudentsPage = () => {
         onClose={() => setShowBulkModal(false)}
         onSubmit={handleBulkAdd}
         title="Bulk Add Students"
-        formatHint="Format: admissionNumber, fullName, phone(optional) — one per line"
+        formatHint="Format: admissionNumber, fullName, phone(optional) - one per line"
         placeholder={`ADM001, John Doe, +254700000000\nADM002, Jane Smith`}
         submitLabel="Add Students"
       />

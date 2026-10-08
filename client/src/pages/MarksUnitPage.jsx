@@ -194,7 +194,7 @@ const MarksUnitPage = () => {
             </svg>
             Back to Marks
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">{unit.name} — Marks Entry</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{unit.name} - Marks Entry</h1>
           <div className="flex items-center space-x-2 mt-2">
             <Badge variant="info">{cls.className}</Badge>
             <code className="text-xs bg-gray-100 px-2 py-1 rounded">{unit.code}</code>
@@ -298,7 +298,7 @@ const MarksUnitPage = () => {
         onClose={() => setShowPaste(false)}
         onSubmit={handlePaste}
         title="Paste Marks"
-        formatHint={`Format: admissionNumber, F1, F2, F3, F4 (up to ${unit.formativeCount} scores) — one per line`}
+        formatHint={`Format: admissionNumber, F1, F2, F3, F4 (up to ${unit.formativeCount} scores) - one per line`}
         placeholder={`ADM001, 78, 85, 90\nADM002, 66, 72, 80`}
         submitLabel="Save Marks"
       />

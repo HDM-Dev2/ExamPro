@@ -63,7 +63,7 @@ const DepartmentsPage = () => {
       setShowModal(false);
       load();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save');
+      toast.error(error.response?.data?.message || 'Failed');
     } finally {
       setSaving(false);
     }
@@ -107,19 +107,9 @@ const DepartmentsPage = () => {
         </Badge>
       </td>
       <td className="px-6 py-4 whitespace-nowrap space-x-2">
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => navigate(`/departments/${dept._id}`)}
-        >
-          Open
-        </Button>
-        <Button variant="secondary" size="sm" onClick={() => openEdit(dept)}>
-          Edit
-        </Button>
-        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(dept)}>
-          Delete
-        </Button>
+        <Button variant="primary" size="sm" onClick={() => navigate(`/departments/${dept._id}`)}>Open</Button>
+        <Button variant="secondary" size="sm" onClick={() => openEdit(dept)}>Edit</Button>
+        <Button variant="danger" size="sm" onClick={() => setDeleteTarget(dept)}>Delete</Button>
       </td>
     </tr>
   );
@@ -140,19 +130,10 @@ const DepartmentsPage = () => {
       </div>
 
       <Card>
-        <Table
-          headers={headers}
-          data={departments}
-          renderRow={renderRow}
-          emptyMessage="No departments yet"
-        />
+        <Table headers={headers} data={departments} renderRow={renderRow} emptyMessage="No departments yet" />
       </Card>
 
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title={editing ? 'Edit Department' : 'Add Department'}
-      >
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editing ? 'Edit Department' : 'Add Department'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Department Name"
@@ -162,12 +143,8 @@ const DepartmentsPage = () => {
             required
           />
           <div className="flex justify-end space-x-3">
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={saving}>
-              {editing ? 'Update' : 'Create'}
-            </Button>
+            <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+            <Button type="submit" isLoading={saving}>{editing ? 'Update' : 'Create'}</Button>
           </div>
         </form>
       </Modal>

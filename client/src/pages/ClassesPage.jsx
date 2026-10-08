@@ -319,7 +319,7 @@ const ClassesPage = () => {
         onClose={() => setShowBulk(false)}
         onSubmit={handleBulkAdd}
         title="Bulk Add Classes"
-        formatHint="Format: className, level (4, 5, or 6) — one per line. Course/Department come from the Add Class modal."
+        formatHint="Format: className, level (4, 5, or 6) - one per line. Course/Department come from the Add Class modal."
         placeholder={`ICTL5 25M, 5\nICTL4 24M, 4\nICTL6 26M, 6`}
         submitLabel="Add Classes"
       />
