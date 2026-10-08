@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePlatform } from '../context/PlatformContext';
 import * as platformApi from '../api/platformSettingsApi';
@@ -79,7 +79,7 @@ const PlatformSettingsPage = () => {
               onChange={(val) => setForm({ ...form, favicon: val })}
               type="platform-favicon"
               previewHeight="h-16"
-              recommended="32×32 or 64×64 — PNG or ICO"
+              recommended="32Ã-32 or 64Ã-64 - PNG or ICO"
             />
 
             <Input
@@ -96,7 +96,7 @@ const PlatformSettingsPage = () => {
               label="Footer Text"
               value={form.footerText || ''}
               onChange={(e) => setForm({ ...form, footerText: e.target.value })}
-              placeholder="© 2026 ExamPro"
+              placeholder="Â© 2026 ExamPro"
             />
           </div>
         </Card>

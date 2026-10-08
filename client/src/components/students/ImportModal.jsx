@@ -13,7 +13,7 @@ const ImportModal = ({ isOpen, onClose, classes, onImported }) => {
 
   const classOptions = classes.map((cls) => ({
     value: cls._id,
-    label: `${cls.className}${cls.departmentId?.name ? ` — ${cls.departmentId.name}` : ''}`,
+    label: `${cls.className}${cls.departmentId?.name ? ` - ${cls.departmentId.name}` : ''}`,
   }));
 
   const handleFileChange = (e) => {
@@ -86,7 +86,7 @@ const ImportModal = ({ isOpen, onClose, classes, onImported }) => {
               <div className="max-h-40 overflow-y-auto text-xs bg-yellow-50 border border-yellow-200 rounded p-2 space-y-1">
                 {result.skippedRows.map((s, i) => (
                   <div key={i}>
-                    <strong>{s.admissionNumber}</strong> — {s.reason}
+                    <strong>{s.admissionNumber}</strong> - {s.reason}
                   </div>
                 ))}
               </div>
@@ -99,7 +99,7 @@ const ImportModal = ({ isOpen, onClose, classes, onImported }) => {
               <div className="max-h-40 overflow-y-auto text-xs bg-red-50 border border-red-200 rounded p-2 space-y-1">
                 {result.errorRows.map((s, i) => (
                   <div key={i}>
-                    <strong>{s.row?.admissionNumber || '-'}</strong> — {s.message}
+                    <strong>{s.row?.admissionNumber || '-'}</strong> - {s.message}
                   </div>
                 ))}
               </div>

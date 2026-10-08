@@ -81,7 +81,7 @@ const PendingApprovalPage = () => {
       } else if (code === 'SUSPENDED') {
         toast.error('Your account is suspended');
       } else {
-        // Not blocked anymore — let them try logging in
+        // Not blocked anymore - let them try logging in
         toast.success('Your account may be active now. Please log in.');
         sessionStorage.removeItem('authBlockedState');
         navigate('/login');

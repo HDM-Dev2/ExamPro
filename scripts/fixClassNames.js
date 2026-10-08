@@ -7,6 +7,7 @@ const run = async () => {
   const classes = await col.find({}).toArray();
 
   let fixed = 0;
+
   for (const cls of classes) {
     const original = cls.className || '';
     const cleaned = original
@@ -19,10 +20,11 @@ const run = async () => {
 
     if (cleaned !== original) {
       await col.updateOne({ _id: cls._id }, { $set: { className: cleaned } });
-      console.log(`"${original}" → "${cleaned}"`);
+      console.log(`"${original}" -> "${cleaned}"`);
       fixed++;
     }
   }
+
   console.log(`\nFixed: ${fixed} classes`);
   await mongoose.connection.close();
   process.exit(0);

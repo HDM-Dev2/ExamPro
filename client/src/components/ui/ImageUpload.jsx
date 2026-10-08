@@ -10,7 +10,7 @@ const ImageUpload = ({
   onChange,
   type = 'misc',
   accept = 'image/*',
-  recommended = 'PNG, JPG, WebP, or SVG — max 5MB',
+  recommended = 'PNG, JPG, WebP, or SVG - max 5MB',
   previewHeight = 'h-24',
   disabled = false,
 }) => {

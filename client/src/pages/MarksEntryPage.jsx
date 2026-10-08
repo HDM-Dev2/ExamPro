@@ -186,7 +186,7 @@ const MarksEntryPage = () => {
             Back to {cls.className}
           </button>
           <h1 className="text-2xl font-bold text-gray-900">
-            {unit.name} — Marks Entry
+            {unit.name} - Marks Entry
           </h1>
           <div className="flex items-center space-x-2 mt-2">
             <Badge variant="info">{cls.className}</Badge>

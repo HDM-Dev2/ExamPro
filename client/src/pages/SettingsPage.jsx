@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import Card from '../components/ui/Card';
@@ -19,9 +19,9 @@ const GRADING_SYSTEMS = [
 ];
 
 const PAPER_SIZES = [
-  { value: 'A4', label: 'A4 (210 × 297 mm)' },
-  { value: 'A5', label: 'A5 (148 × 210 mm)' },
-  { value: 'Letter', label: 'Letter (216 × 279 mm)' },
+  { value: 'A4', label: 'A4 (210 Ã- 297 mm)' },
+  { value: 'A5', label: 'A5 (148 Ã- 210 mm)' },
+  { value: 'Letter', label: 'Letter (216 Ã- 279 mm)' },
 ];
 
 const ORIENTATIONS = [
@@ -250,7 +250,7 @@ const SettingsPage = () => {
               onChange={setLogo}
               type="logo"
               previewHeight="h-24"
-              recommended="PNG, JPG, WebP, or SVG — max 5MB"
+              recommended="PNG, JPG, WebP, or SVG - max 5MB"
               disabled={readOnly}
             />
 
@@ -450,7 +450,7 @@ const SettingsPage = () => {
               onChange={(val) => setPrintForm({ ...printForm, letterhead: val })}
               type="letterhead"
               previewHeight="h-40"
-              recommended="A4 scan recommended (210mm wide) — max 5MB"
+              recommended="A4 scan recommended (210mm wide) - max 5MB"
               disabled={readOnly}
             />
 
@@ -516,7 +516,7 @@ const SettingsPage = () => {
           <div className="space-y-4">
             <Input
               label="Report Footer Text"
-              placeholder="© 2026 My School"
+              placeholder="Â© 2026 My School"
               value={reportForm.reportFooter}
               onChange={(e) => setReportForm({ ...reportForm, reportFooter: e.target.value })}
               disabled={readOnly}

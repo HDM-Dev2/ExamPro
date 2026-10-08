@@ -203,7 +203,7 @@ const buildPrintDocument = ({ content, settings, title }) => {
 <html>
 <head>
   <meta charset="utf-8">
-  <title>${title || 'Report'} — ${schoolName}</title>
+  <title>${title || 'Report'} - ${schoolName}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     ${buildPageCSS(settings)}

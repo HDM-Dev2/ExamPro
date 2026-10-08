@@ -81,7 +81,7 @@ const SchoolDashboard = () => {
           {settings?.schoolName || 'Dashboard'}
         </h1>
         <p className="text-gray-600 mt-1">
-          {settings?.academicYear || ''} {settings?.term || ''} — Overview
+          {settings?.academicYear || ''} {settings?.term || ''} - Overview
         </p>
       </div>
 
