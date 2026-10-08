@@ -1,16 +1,17 @@
 const Score = require('../models/Score');
-const Course = require('../models/Course');
+const Class = require('../models/Class');
 
-const getScoresByCourse = async (req, res) => {
+const getScoresByClass = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const scores = await Score.find({ courseId: req.params.courseId, adminId: tenantId })
-      .populate('studentId', 'fullName admissionNumber')
-      .sort({ assessmentType: 1 });
+    const scores = await Score.find({
+      classId: req.params.classId,
+      adminId: tenantId
+    }).sort({ unitId: 1, formativeNumber: 1 });
 
     res.json(scores);
   } catch (error) {
-    console.error('Get scores by course error:', error);
+    console.error('Get scores by class error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -18,9 +19,10 @@ const getScoresByCourse = async (req, res) => {
 const getScoresByUnit = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const scores = await Score.find({ unitId: req.params.unitId, adminId: tenantId })
-      .populate('studentId', 'fullName admissionNumber')
-      .sort({ assessmentType: 1 });
+    const scores = await Score.find({
+      unitId: req.params.unitId,
+      adminId: tenantId
+    }).sort({ formativeNumber: 1 });
 
     res.json(scores);
   } catch (error) {
@@ -32,8 +34,11 @@ const getScoresByUnit = async (req, res) => {
 const getScoresByStudent = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const scores = await Score.find({ studentId: req.params.studentId, adminId: tenantId })
-      .populate('courseId', 'courseCode courseName')
+    const scores = await Score.find({
+      studentId: req.params.studentId,
+      adminId: tenantId
+    })
+      .populate('classId', 'className')
       .sort({ createdAt: -1 });
 
     res.json(scores);
@@ -43,53 +48,144 @@ const getScoresByStudent = async (req, res) => {
   }
 };
 
-const createScore = async (req, res) => {
+const saveBulkScores = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const { studentId, courseId, unitId, assessmentType, score } = req.body;
+    const { classId, unitId, scores } = req.body;
 
-    const course = await Course.findOne({ _id: courseId, adminId: tenantId });
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+    if (!classId) {
+      return res.status(400).json({ message: 'Class ID is required' });
     }
 
-    const unit = course.units.id(unitId);
-    if (!unit) {
-      return res.status(404).json({ message: 'Unit not found' });
+    if (!unitId) {
+      return res.status(400).json({ message: 'Unit ID is required' });
     }
 
-    const maxScore = course.weights[assessmentType];
-    if (score < 0 || score > maxScore) {
-      return res.status(400).json({ message: `Score must be between 0 and ${maxScore}` });
+    if (!scores || !Array.isArray(scores) || scores.length === 0) {
+      return res.status(400).json({ message: 'No scores provided' });
     }
 
-    let existingScore = await Score.findOne({
-      studentId,
-      courseId,
-      unitId,
-      assessmentType,
+    const cls = await Class.findOne({
+      _id: classId,
       adminId: tenantId
     });
 
-    if (existingScore) {
-      existingScore.score = score;
-      await existingScore.save();
-      return res.json(existingScore);
+    if (!cls) {
+      return res.status(404).json({ message: 'Class not found' });
     }
 
-    const newScore = new Score({
-      adminId: tenantId,
-      studentId,
-      courseId,
-      unitId,
-      assessmentType,
-      score
-    });
+    const unitExists = cls.units.some((u) => u._id.toString() === unitId.toString());
+    if (!unitExists) {
+      return res.status(404).json({ message: 'Unit not found in class' });
+    }
 
-    await newScore.save();
-    res.status(201).json(newScore);
+    const results = [];
+    const errors = [];
+
+    for (const scoreData of scores) {
+      try {
+        const { studentId, formativeNumber, score } = scoreData;
+
+        const num = Number(score);
+
+        if (isNaN(num) || num < 0 || num > 100) {
+          errors.push({ studentId, formativeNumber, message: 'Score must be between 0 and 100' });
+          continue;
+        }
+
+        if (![1, 2, 3, 4].includes(formativeNumber)) {
+          errors.push({ studentId, message: 'Invalid formative number' });
+          continue;
+        }
+
+        let existingScore = await Score.findOne({
+          studentId,
+          classId,
+          unitId,
+          formativeNumber,
+          adminId: tenantId
+        });
+
+        if (existingScore) {
+          if (existingScore.locked) {
+            errors.push({
+              studentId,
+              formativeNumber,
+              message: 'Score is locked and cannot be edited'
+            });
+            continue;
+          }
+          existingScore.score = num;
+          await existingScore.save();
+          results.push(existingScore);
+        } else {
+          const newScore = new Score({
+            adminId: tenantId,
+            studentId,
+            classId,
+            unitId,
+            formativeNumber,
+            score: num,
+            locked: true,
+            lockedAt: new Date(),
+            lockedBy: req.userId
+          });
+          await newScore.save();
+          results.push(newScore);
+        }
+      } catch (error) {
+        errors.push({ scoreData, message: error.message });
+      }
+    }
+
+    res.status(201).json({
+      saved: results,
+      errors,
+      totalSaved: results.length,
+      totalErrors: errors.length
+    });
   } catch (error) {
-    console.error('Create score error:', error);
+    console.error('Save bulk scores error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const unlockScores = async (req, res) => {
+  try {
+    const tenantId = req.tenantId;
+
+    if (!req.isOwner) {
+      return res.status(403).json({ message: 'Only the account owner can unlock scores' });
+    }
+
+    const { classId, unitId } = req.body;
+
+    if (!classId || !unitId) {
+      return res.status(400).json({ message: 'Class ID and Unit ID are required' });
+    }
+
+    const result = await Score.updateMany(
+      {
+        classId,
+        unitId,
+        adminId: tenantId,
+        locked: true
+      },
+      {
+        $set: {
+          locked: false,
+          lockedAt: null,
+          lockedBy: null
+        }
+      }
+    );
+
+    res.json({
+      message: 'Scores unlocked',
+      unlocked: result.modifiedCount
+    });
+  } catch (error) {
+    console.error('Unlock scores error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -99,22 +195,28 @@ const updateScore = async (req, res) => {
     const tenantId = req.tenantId;
     const { score } = req.body;
 
-    const existingScore = await Score.findOne({ _id: req.params.id, adminId: tenantId });
-    if (!existingScore) {
+    const existing = await Score.findOne({
+      _id: req.params.id,
+      adminId: tenantId
+    });
+
+    if (!existing) {
       return res.status(404).json({ message: 'Score not found' });
     }
 
-    const course = await Course.findById(existingScore.courseId);
-    const maxScore = course.weights[existingScore.assessmentType];
-
-    if (score < 0 || score > maxScore) {
-      return res.status(400).json({ message: `Score must be between 0 and ${maxScore}` });
+    if (existing.locked && !req.isOwner) {
+      return res.status(403).json({ message: 'Score is locked' });
     }
 
-    existingScore.score = score;
-    await existingScore.save();
+    const num = Number(score);
+    if (isNaN(num) || num < 0 || num > 100) {
+      return res.status(400).json({ message: 'Score must be between 0 and 100' });
+    }
 
-    res.json(existingScore);
+    existing.score = num;
+    await existing.save();
+
+    res.json(existing);
   } catch (error) {
     console.error('Update score error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -124,11 +226,21 @@ const updateScore = async (req, res) => {
 const deleteScore = async (req, res) => {
   try {
     const tenantId = req.tenantId;
-    const score = await Score.findOneAndDelete({ _id: req.params.id, adminId: tenantId });
+
+    const score = await Score.findOne({
+      _id: req.params.id,
+      adminId: tenantId
+    });
 
     if (!score) {
       return res.status(404).json({ message: 'Score not found' });
     }
+
+    if (score.locked && !req.isOwner) {
+      return res.status(403).json({ message: 'Score is locked' });
+    }
+
+    await score.deleteOne();
 
     res.json({ message: 'Score deleted successfully' });
   } catch (error) {
@@ -138,10 +250,11 @@ const deleteScore = async (req, res) => {
 };
 
 module.exports = {
-  getScoresByCourse,
+  getScoresByClass,
   getScoresByUnit,
   getScoresByStudent,
-  createScore,
+  saveBulkScores,
+  unlockScores,
   updateScore,
   deleteScore
 };

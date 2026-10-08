@@ -1,7 +1,7 @@
 import api from './axios';
 
-export const getScoresByCourse = async (courseId) => {
-  const response = await api.get(`/scores/course/${courseId}`);
+export const getScoresByClass = async (classId) => {
+  const response = await api.get(`/scores/class/${classId}`);
   return response.data;
 };
 
@@ -15,18 +15,18 @@ export const getScoresByStudent = async (studentId) => {
   return response.data;
 };
 
-export const createScore = async (scoreData) => {
-  const response = await api.post('/scores', scoreData);
+export const saveBulkScores = async (data) => {
+  const response = await api.post('/scores/bulk', data);
   return response.data;
 };
 
-export const createBulkScores = async (bulkData) => {
-  const response = await api.post('/scores/bulk', bulkData);
+export const unlockScores = async (classId, unitId) => {
+  const response = await api.post('/scores/unlock', { classId, unitId });
   return response.data;
 };
 
-export const updateScore = async (id, scoreData) => {
-  const response = await api.put(`/scores/${id}`, scoreData);
+export const updateScore = async (id, data) => {
+  const response = await api.put(`/scores/${id}`, data);
   return response.data;
 };
 

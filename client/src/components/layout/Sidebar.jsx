@@ -10,15 +10,16 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const menuItems = [
     { name: 'Dashboard', path: '/', icon: IconDashboard },
+    { name: 'Departments', path: '/departments', icon: IconDepartment },
     { name: 'Classes', path: '/classes', icon: IconClass },
+    { name: 'Marks Entry', path: '/marks', icon: IconMarks },
     { name: 'Students', path: '/students', icon: IconStudents },
-    { name: 'Courses', path: '/courses', icon: IconCourses },
     { name: 'Reports', path: '/reports', icon: IconReports },
-    { name: 'Settings', path: '/settings', icon: IconSettings },
   ];
 
   const ownerMenuItems = [
     { name: 'Staff', path: '/staff', icon: IconStaff },
+    { name: 'Settings', path: '/settings', icon: IconSettings },
   ];
 
   const hiddenMenuItems = [
@@ -30,59 +31,36 @@ const Sidebar = ({ isOpen, onClose }) => {
   return (
     <>
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden"
-          onClick={onClose}
-        />
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-20 lg:hidden" onClick={onClose} />
       )}
 
-      <aside
-        className={`fixed inset-y-0 left-0 w-64 bg-dark-200 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-dark-200 text-white transform transition-transform duration-300 z-30 lg:translate-x-0 ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         <div className="flex items-center justify-between px-4 py-6 border-b border-gray-700">
           <div className="flex items-center space-x-2">
-            {platform.logo ? (
+            {(settings?.logo || platform.logo) && (
               <img
-                src={platform.logo}
+                src={settings?.logo || platform.logo}
                 alt="Logo"
                 className="h-8 w-8 rounded-lg object-cover"
               />
-            ) : null}
+            )}
             <div>
-              <h1 className="text-xl font-bold text-blue-500 truncate">
-                {platform.appName}
-              </h1>
+              <h1 className="text-xl font-bold text-blue-500 truncate">{platform.appName}</h1>
               <p className="text-xs text-gray-400 mt-0.5 truncate">
                 {settings?.schoolName || platform.appTagline}
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="lg:hidden text-gray-400 hover:text-white"
-          >
-            <svg
-              className="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
+          <button onClick={onClose} className="lg:hidden text-gray-400 hover:text-white">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <nav
-          className="mt-6 overflow-y-auto"
-          style={{ maxHeight: 'calc(100vh - 180px)' }}
-        >
+        <nav className="mt-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
           {menuItems.map((item) => (
             <NavLink
               key={item.path}
@@ -91,15 +69,11 @@ const Sidebar = ({ isOpen, onClose }) => {
               onClick={onClose}
               className={({ isActive }) =>
                 `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                 }`
               }
             >
-              <span className="mr-3">
-                <item.icon />
-              </span>
+              <span className="mr-3"><item.icon /></span>
               {item.name}
             </NavLink>
           ))}
@@ -107,9 +81,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           {isOwner && ownerMenuItems.length > 0 && (
             <>
               <div className="px-4 py-2 mt-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">
-                  Manage
-                </p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Manage</p>
               </div>
               {ownerMenuItems.map((item) => (
                 <NavLink
@@ -118,15 +90,11 @@ const Sidebar = ({ isOpen, onClose }) => {
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-                      isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      isActive ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                     }`
                   }
                 >
-                  <span className="mr-3">
-                    <item.icon />
-                  </span>
+                  <span className="mr-3"><item.icon /></span>
                   {item.name}
                 </NavLink>
               ))}
@@ -136,9 +104,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           {isHiddenAdmin && (
             <>
               <div className="px-4 py-2 mt-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">
-                  Hidden Access
-                </p>
+                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Hidden Access</p>
               </div>
               {hiddenMenuItems.map((item) => (
                 <NavLink
@@ -147,15 +113,11 @@ const Sidebar = ({ isOpen, onClose }) => {
                   onClick={onClose}
                   className={({ isActive }) =>
                     `flex items-center px-4 py-3 text-sm font-medium transition-colors duration-200 ${
-                      isActive
-                        ? 'bg-red-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                      isActive ? 'bg-red-600 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                     }`
                   }
                 >
-                  <span className="mr-3">
-                    <item.icon />
-                  </span>
+                  <span className="mr-3"><item.icon /></span>
                   {item.name}
                 </NavLink>
               ))}
@@ -165,8 +127,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-700">
           <p className="text-xs text-gray-400 text-center truncate">
-            {platform.footerText ||
-              `© ${new Date().getFullYear()} ${platform.appName}`}
+            {platform.footerText || `© ${new Date().getFullYear()} ${platform.appName}`}
           </p>
         </div>
       </aside>
@@ -180,21 +141,27 @@ const IconDashboard = () => (
   </svg>
 );
 
-const IconClass = () => (
+const IconDepartment = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  </svg>
+);
+
+const IconClass = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+  </svg>
+);
+
+const IconMarks = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
   </svg>
 );
 
 const IconStudents = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-  </svg>
-);
-
-const IconCourses = () => (
-  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
   </svg>
 );
 

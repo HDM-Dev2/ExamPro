@@ -25,7 +25,7 @@ module.exports = async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.userId).select(
-      '_id role status isActive mustChangePassword isHiddenAdmin parentAdminId'
+      '_id role status isActive mustChangePassword isHiddenAdmin parentAdminId departments'
     );
 
     if (!user) {
@@ -57,6 +57,12 @@ module.exports = async (req, res, next) => {
     req.parentAdminId = user.parentAdminId || user._id;
     req.tenantId = user.parentAdminId || user._id;
     req.isAdmin = true;
+
+    if (user.role === 'staff' && user.departments && user.departments.length > 0) {
+      req.departments = user.departments.map((d) => d.toString());
+    } else {
+      req.departments = null;
+    }
 
     next();
   } catch (error) {

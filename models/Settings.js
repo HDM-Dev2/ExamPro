@@ -77,7 +77,7 @@ const settingsSchema = new mongoose.Schema({
   },
   passMark: {
     type: Number,
-    default: 40
+    default: 50
   },
   reportFooter: {
     type: String,
@@ -85,8 +85,8 @@ const settingsSchema = new mongoose.Schema({
   },
   gradingSystem: {
     type: String,
-    enum: ['af', 'cbc', 'custom'],
-    default: 'af'
+    enum: ['af', 'cbc', 'mastery', 'custom'],
+    default: 'mastery'
   },
   grades: [{
     name: {
@@ -106,6 +106,32 @@ const settingsSchema = new mongoose.Schema({
       default: ''
     }
   }],
+  letterhead: {
+    type: String,
+    default: ''
+  },
+  letterheadHeight: {
+    type: Number,
+    default: 60
+  },
+  printMarginTop: {
+    type: Number,
+    default: 8
+  },
+  printMarginBottom: {
+    type: Number,
+    default: 15
+  },
+  paperSize: {
+    type: String,
+    enum: ['A4', 'A5', 'Letter'],
+    default: 'A4'
+  },
+  orientation: {
+    type: String,
+    enum: ['portrait', 'landscape'],
+    default: 'portrait'
+  },
   updatedAt: {
     type: Date,
     default: Date.now

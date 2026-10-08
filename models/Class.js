@@ -1,5 +1,27 @@
 const mongoose = require('mongoose');
 
+const unitSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  code: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  formativeCount: {
+    type: Number,
+    enum: [3, 4],
+    default: 3
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+});
+
 const classSchema = new mongoose.Schema({
   adminId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -12,6 +34,16 @@ const classSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  departmentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
+    required: true,
+    index: true
+  },
+  level: {
+    type: Number,
+    default: null
+  },
   description: {
     type: String,
     default: '',
@@ -21,6 +53,7 @@ const classSchema = new mongoose.Schema({
     type: String,
     default: () => new Date().getFullYear().toString()
   },
+  units: [unitSchema],
   isActive: {
     type: Boolean,
     default: true

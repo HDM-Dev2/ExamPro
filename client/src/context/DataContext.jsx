@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useCallback } from 'react';
 import * as classApi from '../api/classApi';
 import * as studentApi from '../api/studentApi';
-import * as courseApi from '../api/courseApi';
+import * as departmentApi from '../api/departmentApi';
 import * as scoreApi from '../api/scoreApi';
 import * as reportApi from '../api/reportApi';
 import toast from 'react-hot-toast';
@@ -17,23 +17,51 @@ export const useData = () => {
 };
 
 export const DataProvider = ({ children }) => {
+  const [departments, setDepartments] = useState([]);
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
-  const [courses, setCourses] = useState([]);
-  const [currentCourse, setCurrentCourse] = useState(null);
+  const [currentClass, setCurrentClass] = useState(null);
   const [currentStudent, setCurrentStudent] = useState(null);
   const [scores, setScores] = useState([]);
   const [reports, setReports] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchClasses = useCallback(async () => {
+  const fetchDepartments = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await classApi.getClasses();
+      const data = await departmentApi.getDepartments();
+      setDepartments(data);
+      return data;
+    } catch (error) {
+      toast.error('Failed to load departments');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchClasses = useCallback(async (params = {}) => {
+    setLoading(true);
+    try {
+      const data = await classApi.getClasses(params);
       setClasses(data);
       return data;
     } catch (error) {
       toast.error('Failed to load classes');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchClassById = useCallback(async (classId) => {
+    setLoading(true);
+    try {
+      const data = await classApi.getClassById(classId);
+      setCurrentClass(data);
+      return data;
+    } catch (error) {
+      toast.error('Failed to load class');
       throw error;
     } finally {
       setLoading(false);
@@ -68,51 +96,10 @@ export const DataProvider = ({ children }) => {
     }
   }, []);
 
-  const fetchCourses = useCallback(async (params = {}) => {
+  const fetchScoresByClass = useCallback(async (classId) => {
     setLoading(true);
     try {
-      const data = await courseApi.getCourses(params);
-      setCourses(data);
-      return data;
-    } catch (error) {
-      toast.error('Failed to load courses');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchCourseById = useCallback(async (courseId) => {
-    setLoading(true);
-    try {
-      const data = await courseApi.getCourseById(courseId);
-      setCurrentCourse(data);
-      return data;
-    } catch (error) {
-      toast.error('Failed to load course');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchCourseSummary = useCallback(async (courseId) => {
-    setLoading(true);
-    try {
-      const data = await courseApi.getCourseSummary(courseId);
-      return data;
-    } catch (error) {
-      toast.error('Failed to load course summary');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const fetchScoresByCourse = useCallback(async (courseId) => {
-    setLoading(true);
-    try {
-      const data = await scoreApi.getScoresByCourse(courseId);
+      const data = await scoreApi.getScoresByClass(classId);
       setScores(data);
       return data;
     } catch (error) {
@@ -165,22 +152,22 @@ export const DataProvider = ({ children }) => {
     }
   }, []);
 
-  const fetchCourseReport = useCallback(async (courseId) => {
+  const fetchMissingMarks = useCallback(async (classId) => {
     setLoading(true);
     try {
-      const data = await reportApi.getCourseReport(courseId);
+      const data = await reportApi.getMissingMarks(classId);
       setReports(data);
       return data;
     } catch (error) {
-      toast.error('Failed to load course report');
+      toast.error('Failed to load missing marks');
       throw error;
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const clearCurrentCourse = useCallback(() => {
-    setCurrentCourse(null);
+  const clearCurrentClass = useCallback(() => {
+    setCurrentClass(null);
   }, []);
 
   const clearReports = useCallback(() => {
@@ -190,27 +177,26 @@ export const DataProvider = ({ children }) => {
   return (
     <DataContext.Provider
       value={{
+        departments,
         classes,
         students,
-        courses,
-        currentCourse,
+        currentClass,
         currentStudent,
         scores,
         reports,
         loading,
         setCurrentStudent,
+        fetchDepartments,
         fetchClasses,
+        fetchClassById,
         fetchStudents,
         fetchStudentsByClass,
-        fetchCourses,
-        fetchCourseById,
-        fetchCourseSummary,
-        fetchScoresByCourse,
+        fetchScoresByClass,
         fetchScoresByStudent,
         fetchClassReport,
         fetchStudentReport,
-        fetchCourseReport,
-        clearCurrentCourse,
+        fetchMissingMarks,
+        clearCurrentClass,
         clearReports,
       }}
     >

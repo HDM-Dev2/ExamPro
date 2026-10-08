@@ -1,63 +1,51 @@
-export const EXAM_TYPES = [
-  { value: 'assignment_cat_exam', label: 'Assignment + CAT + Exam' },
-  { value: 'cat_exam', label: 'CAT + Exam' },
-  { value: 'exam_only', label: 'Exam Only' },
-  { value: 'custom', label: 'Custom' },
-];
-
-export const formatExamType = (examType) => {
-  const types = {
-    'assignment_cat_exam': 'Assignment + CAT + Exam',
-    'cat_exam': 'CAT + Exam',
-    'exam_only': 'Exam Only',
-    'custom': 'Custom',
-  };
-  return types[examType] || examType;
-};
-
-export const DEFAULT_WEIGHTS = {
-  assignment_cat_exam: { assignment: 10, cat: 20, exam: 70 },
-  cat_exam: { assignment: 0, cat: 30, exam: 70 },
-  exam_only: { assignment: 0, cat: 0, exam: 100 },
-  custom: { assignment: 0, cat: 0, exam: 0 },
-};
-
 export const ASSESSMENT_TYPES = [
-  { value: 'assignment', label: 'Assignment', color: 'bg-blue-100 text-blue-800' },
-  { value: 'cat', label: 'CAT', color: 'bg-yellow-100 text-yellow-800' },
-  { value: 'exam', label: 'Exam', color: 'bg-green-100 text-green-800' },
+  { value: 1, label: 'Formative 1' },
+  { value: 2, label: 'Formative 2' },
+  { value: 3, label: 'Formative 3' },
+  { value: 4, label: 'Formative 4' },
 ];
 
-export const GRADING_SYSTEMS = [
-  { value: 'af', label: 'A-F Grading' },
-  { value: 'cbc', label: 'CBC Based' },
-  { value: 'custom', label: 'Custom' },
+export const FORMATIVE_COUNTS = [
+  { value: 3, label: '3 Formatives' },
+  { value: 4, label: '4 Formatives' },
 ];
 
-export const DEFAULT_AF_GRADES = [
-  { name: 'A', minScore: 70, maxScore: 100, remark: 'Excellent' },
-  { name: 'B', minScore: 60, maxScore: 69.99, remark: 'Good' },
-  { name: 'C', minScore: 50, maxScore: 59.99, remark: 'Average' },
-  { name: 'D', minScore: 40, maxScore: 49.99, remark: 'Below Average' },
-  { name: 'F', minScore: 0, maxScore: 39.99, remark: 'Fail' },
+export const DEFAULT_GRADES = [
+  { name: 'Mastery', minScore: 80, maxScore: 100, remark: 'Mastery' },
+  { name: 'Proficient', minScore: 70, maxScore: 79, remark: 'Proficient' },
+  { name: 'Competent', minScore: 50, maxScore: 69, remark: 'Competent' },
+  { name: 'Not Yet Competent', minScore: 0, maxScore: 49, remark: 'NYC' },
 ];
 
-export const DEFAULT_CBC_GRADES = [
-  { name: 'Exceeding Expectation', minScore: 80, maxScore: 100, remark: 'EE' },
-  { name: 'Meeting Expectation', minScore: 60, maxScore: 79.99, remark: 'ME' },
-  { name: 'Approaching Expectation', minScore: 40, maxScore: 59.99, remark: 'AE' },
-  { name: 'Below Expectation', minScore: 0, maxScore: 39.99, remark: 'BE' },
-];
+export const PASS_MARK = 50;
 
-export const PASS_MARK = 40;
-
-export const PAGINATION_DEFAULTS = {
-  page: 1,
-  limit: 10,
+export const getGradeFromScore = (score, grades) => {
+  if (score === null || score === undefined || isNaN(score)) return null;
+  const list = grades && grades.length ? grades : DEFAULT_GRADES;
+  for (const grade of list) {
+    if (score >= grade.minScore && score <= grade.maxScore) {
+      return grade.name;
+    }
+  }
+  return 'Not Yet Competent';
 };
 
-export const HIDDEN_ADMIN_SHORTCUT = {
-  ctrlKey: true,
-  shiftKey: true,
-  key: 'A',
+export const getGradeColor = (gradeName) => {
+  const map = {
+    'Mastery': 'text-green-600',
+    'Proficient': 'text-blue-600',
+    'Competent': 'text-yellow-600',
+    'Not Yet Competent': 'text-red-600',
+  };
+  return map[gradeName] || 'text-gray-600';
+};
+
+export const getGradeBadgeVariant = (gradeName) => {
+  const map = {
+    'Mastery': 'success',
+    'Proficient': 'primary',
+    'Competent': 'warning',
+    'Not Yet Competent': 'danger',
+  };
+  return map[gradeName] || 'default';
 };

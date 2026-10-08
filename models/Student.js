@@ -22,12 +22,6 @@ const studentSchema = new mongoose.Schema({
     ref: 'Class',
     required: true
   },
-  email: {
-    type: String,
-    default: '',
-    trim: true,
-    lowercase: true
-  },
   phone: {
     type: String,
     default: '',

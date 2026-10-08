@@ -8,10 +8,12 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import Dashboard from './pages/Dashboard';
+import DepartmentsPage from './pages/DepartmentsPage';
 import ClassesPage from './pages/ClassesPage';
+import ClassDetailPage from './pages/ClassDetailPage';
+import MarksPage from './pages/MarksPage';
+import MarksUnitPage from './pages/MarksUnitPage';
 import StudentsPage from './pages/StudentsPage';
-import CoursesPage from './pages/CoursesPage';
-import CourseDetailPage from './pages/CourseDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import SettingsPage from './pages/SettingsPage';
 import StaffPage from './pages/StaffPage';
@@ -55,14 +57,20 @@ const App = () => {
         }
       >
         <Route index element={<Dashboard />} />
+        <Route path="departments" element={<DepartmentsPage />} />
         <Route path="classes" element={<ClassesPage />} />
+        <Route path="classes/:classId" element={<ClassDetailPage />} />
+        <Route path="marks" element={<MarksPage />} />
+        <Route path="marks/:classId/:unitId" element={<MarksUnitPage />} />
         <Route path="students" element={<StudentsPage />} />
-        <Route path="courses" element={<CoursesPage />} />
-        <Route path="courses/:courseId" element={<CourseDetailPage />} />
         <Route path="reports" element={<ReportsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
 
-        {isOwner && <Route path="staff" element={<StaffPage />} />}
+        {isOwner && (
+          <>
+            <Route path="staff" element={<StaffPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </>
+        )}
 
         {isHiddenAdmin && (
           <>

@@ -1,66 +1,113 @@
 import { useState, useEffect } from 'react';
-import { useData } from '../context/DataContext';
+import { useNavigate } from 'react-router-dom';
 import * as classApi from '../api/classApi';
+import * as departmentApi from '../api/departmentApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 import Modal from '../components/ui/Modal';
 import Table from '../components/ui/Table';
 import Badge from '../components/ui/Badge';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import Spinner from '../components/ui/Spinner';
 import toast from 'react-hot-toast';
 
 const ClassesPage = () => {
-  const { classes, fetchClasses, loading } = useData();
+  const navigate = useNavigate();
+  const [classes, setClasses] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [editingClass, setEditingClass] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [formData, setFormData] = useState({
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [form, setForm] = useState({
     className: '',
-    description: '',
-    academicYear: '',
+    departmentId: '',
+    level: '',
   });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchClasses();
+    loadDepartments();
+    loadClasses();
   }, []);
 
-  const handleOpenModal = (cls = null) => {
-    if (cls) {
-      setEditingClass(cls);
-      setFormData({
-        className: cls.className,
-        description: cls.description || '',
-        academicYear: cls.academicYear || '',
-      });
-    } else {
-      setEditingClass(null);
-      setFormData({
-        className: '',
-        description: '',
-        academicYear: '',
-      });
+  useEffect(() => {
+    loadClasses();
+  }, [selectedDepartment]);
+
+  const loadDepartments = async () => {
+    try {
+      const data = await departmentApi.getDepartments();
+      setDepartments(data);
+    } catch (error) {
+      toast.error('Failed to load departments');
     }
+  };
+
+  const loadClasses = async () => {
+    setLoading(true);
+    try {
+      const params = selectedDepartment ? { departmentId: selectedDepartment } : {};
+      const data = await classApi.getClasses(params);
+      setClasses(data);
+    } catch (error) {
+      toast.error('Failed to load classes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const departmentOptions = departments.map((d) => ({
+    value: d._id,
+    label: d.name,
+  }));
+
+  const levelOptions = [
+    { value: '4', label: 'Level 4' },
+    { value: '5', label: 'Level 5' },
+    { value: '6', label: 'Level 6' },
+  ];
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ className: '', departmentId: '', level: '' });
+    setShowModal(true);
+  };
+
+  const openEdit = (cls) => {
+    setEditing(cls);
+    setForm({
+      className: cls.className,
+      departmentId: cls.departmentId?._id || cls.departmentId || '',
+      level: cls.level || '',
+    });
     setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-
     try {
-      if (editingClass) {
-        await classApi.updateClass(editingClass._id, formData);
-        toast.success('Class updated successfully');
+      const payload = {
+        className: form.className,
+        departmentId: form.departmentId,
+        level: form.level ? Number(form.level) : null,
+      };
+
+      if (editing) {
+        await classApi.updateClass(editing._id, payload);
+        toast.success('Class updated');
       } else {
-        await classApi.createClass(formData);
-        toast.success('Class created successfully');
+        await classApi.createClass(payload);
+        toast.success('Class created');
       }
       setShowModal(false);
-      fetchClasses();
+      loadClasses();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Operation failed');
+      toast.error(error.response?.data?.message || 'Failed to save');
     } finally {
       setSaving(false);
     }
@@ -68,32 +115,36 @@ const ClassesPage = () => {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-
     try {
       await classApi.deleteClass(deleteTarget._id);
-      toast.success('Class deleted successfully');
+      toast.success('Class deleted');
       setDeleteTarget(null);
-      fetchClasses();
+      loadClasses();
     } catch (error) {
-      toast.error('Failed to delete class');
+      toast.error('Failed to delete');
     }
   };
 
-  const headers = ['Class Name', 'Description', 'Academic Year', 'Students', 'Status', 'Actions'];
+  const headers = ['Class Name', 'Department', 'Level', 'Students', 'Units', 'Status', 'Actions'];
 
   const renderRow = (cls) => (
     <tr key={cls._id}>
       <td className="px-6 py-4 whitespace-nowrap">
         <span className="font-medium text-gray-900">{cls.className}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-        {cls.description || '-'}
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-        {cls.academicYear || '-'}
-      </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant="primary">{cls.studentCount || 0}</Badge>
+        <Badge variant="primary">
+          {cls.departmentId?.name || '-'}
+        </Badge>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+        {cls.level ? `Level ${cls.level}` : '-'}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+        {cls.studentCount || 0}
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap text-gray-600">
+        {cls.unitCount || 0}
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <Badge variant={cls.isActive ? 'success' : 'danger'}>
@@ -101,7 +152,10 @@ const ClassesPage = () => {
         </Badge>
       </td>
       <td className="px-6 py-4 whitespace-nowrap space-x-2">
-        <Button variant="secondary" size="sm" onClick={() => handleOpenModal(cls)}>
+        <Button variant="primary" size="sm" onClick={() => navigate(`/classes/${cls._id}`)}>
+          Open
+        </Button>
+        <Button variant="secondary" size="sm" onClick={() => openEdit(cls)}>
           Edit
         </Button>
         <Button variant="danger" size="sm" onClick={() => setDeleteTarget(cls)}>
@@ -116,15 +170,25 @@ const ClassesPage = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Classes</h1>
-          <p className="text-gray-600 mt-1">Manage your classes</p>
+          <p className="text-gray-600 mt-1">Manage classes and their units</p>
         </div>
-        <Button onClick={() => handleOpenModal()}>
+        <Button onClick={openCreate}>
           <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Add Class
         </Button>
       </div>
+
+      <Card className="mb-6">
+        <Select
+          label="Filter by Department"
+          placeholder="All Departments"
+          options={departmentOptions}
+          value={selectedDepartment}
+          onChange={(e) => setSelectedDepartment(e.target.value)}
+        />
+      </Card>
 
       <Card>
         <Table
@@ -139,34 +203,37 @@ const ClassesPage = () => {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingClass ? 'Edit Class' : 'Add Class'}
+        title={editing ? 'Edit Class' : 'Add Class'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Class Name"
-            placeholder="Enter class name"
-            value={formData.className}
-            onChange={(e) => setFormData({ ...formData, className: e.target.value })}
+          <Select
+            label="Department"
+            placeholder="Select department"
+            options={departmentOptions}
+            value={form.departmentId}
+            onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
             required
           />
           <Input
-            label="Description"
-            placeholder="Enter description"
-            value={formData.description}
-            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            label="Class Name"
+            placeholder="e.g., ICTL5 25M"
+            value={form.className}
+            onChange={(e) => setForm({ ...form, className: e.target.value })}
+            required
           />
-          <Input
-            label="Academic Year"
-            placeholder="e.g., 2024"
-            value={formData.academicYear}
-            onChange={(e) => setFormData({ ...formData, academicYear: e.target.value })}
+          <Select
+            label="Level (optional)"
+            placeholder="Select level"
+            options={levelOptions}
+            value={form.level}
+            onChange={(e) => setForm({ ...form, level: e.target.value })}
           />
           <div className="flex justify-end space-x-3">
             <Button variant="secondary" onClick={() => setShowModal(false)}>
               Cancel
             </Button>
             <Button type="submit" isLoading={saving}>
-              {editingClass ? 'Update' : 'Create'}
+              {editing ? 'Update' : 'Create'}
             </Button>
           </div>
         </form>
@@ -177,7 +244,7 @@ const ClassesPage = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Class"
-        message={`Are you sure you want to delete "${deleteTarget?.className}"? This will also remove all students in this class.`}
+        message={`Delete "${deleteTarget?.className}" and all its scores?`}
         confirmText="Delete"
         variant="danger"
       />

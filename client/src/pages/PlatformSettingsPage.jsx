@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePlatform } from '../context/PlatformContext';
 import * as platformApi from '../api/platformSettingsApi';
@@ -6,6 +6,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Spinner from '../components/ui/Spinner';
+import ImageUpload from '../components/ui/ImageUpload';
 import toast from 'react-hot-toast';
 
 const PlatformSettingsPage = () => {
@@ -14,7 +15,6 @@ const PlatformSettingsPage = () => {
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const fileInputRef = useRef();
 
   useEffect(() => {
     if (!isHiddenAdmin) {
@@ -50,22 +50,6 @@ const PlatformSettingsPage = () => {
     }
   };
 
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm({ ...form, logo: reader.result });
-    reader.readAsDataURL(file);
-  };
-
-  const handleFaviconUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm({ ...form, favicon: reader.result });
-    reader.readAsDataURL(file);
-  };
-
   if (loading || !form) return <Spinner size="lg" className="py-20" />;
 
   return (
@@ -81,37 +65,65 @@ const PlatformSettingsPage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card title="App Identity">
           <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                {form.logo ? (
-                  <img src={form.logo} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-xs text-gray-400">No logo</span>
-                )}
-              </div>
-              <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                Upload Logo
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleLogoUpload}
-              />
-            </div>
-            <Input label="App Name" value={form.appName || ''} onChange={(e) => setForm({ ...form, appName: e.target.value })} />
-            <Input label="Tagline" value={form.appTagline || ''} onChange={(e) => setForm({ ...form, appTagline: e.target.value })} />
-            <Input label="Footer Text" value={form.footerText || ''} onChange={(e) => setForm({ ...form, footerText: e.target.value })} placeholder="© 2026 ExamPro" />
+            <ImageUpload
+              label="Platform Logo"
+              value={form.logo || ''}
+              onChange={(val) => setForm({ ...form, logo: val })}
+              type="platform-logo"
+              previewHeight="h-24"
+            />
+
+            <ImageUpload
+              label="Favicon"
+              value={form.favicon || ''}
+              onChange={(val) => setForm({ ...form, favicon: val })}
+              type="platform-favicon"
+              previewHeight="h-16"
+              recommended="32×32 or 64×64 — PNG or ICO"
+            />
+
+            <Input
+              label="App Name"
+              value={form.appName || ''}
+              onChange={(e) => setForm({ ...form, appName: e.target.value })}
+            />
+            <Input
+              label="Tagline"
+              value={form.appTagline || ''}
+              onChange={(e) => setForm({ ...form, appTagline: e.target.value })}
+            />
+            <Input
+              label="Footer Text"
+              value={form.footerText || ''}
+              onChange={(e) => setForm({ ...form, footerText: e.target.value })}
+              placeholder="© 2026 ExamPro"
+            />
           </div>
         </Card>
 
         <Card title="Support & Contact">
           <div className="space-y-4">
-            <Input label="Support Email" value={form.supportEmail || ''} onChange={(e) => setForm({ ...form, supportEmail: e.target.value })} />
-            <Input label="Support Phone" value={form.supportPhone || ''} onChange={(e) => setForm({ ...form, supportPhone: e.target.value })} />
-            <Input label="WhatsApp" value={form.supportWhatsapp || ''} onChange={(e) => setForm({ ...form, supportWhatsapp: e.target.value })} placeholder="+254..." />
-            <Input label="Help URL" value={form.supportUrl || ''} onChange={(e) => setForm({ ...form, supportUrl: e.target.value })} />
+            <Input
+              label="Support Email"
+              value={form.supportEmail || ''}
+              onChange={(e) => setForm({ ...form, supportEmail: e.target.value })}
+            />
+            <Input
+              label="Support Phone"
+              value={form.supportPhone || ''}
+              onChange={(e) => setForm({ ...form, supportPhone: e.target.value })}
+            />
+            <Input
+              label="WhatsApp"
+              value={form.supportWhatsapp || ''}
+              onChange={(e) => setForm({ ...form, supportWhatsapp: e.target.value })}
+              placeholder="+254..."
+            />
+            <Input
+              label="Help URL"
+              value={form.supportUrl || ''}
+              onChange={(e) => setForm({ ...form, supportUrl: e.target.value })}
+            />
           </div>
         </Card>
 
@@ -148,10 +160,18 @@ const PlatformSettingsPage = () => {
           </div>
         </Card>
 
-        <Card title="Legal">
-          <div className="space-y-4">
-            <Input label="Terms URL" value={form.termsUrl || ''} onChange={(e) => setForm({ ...form, termsUrl: e.target.value })} />
-            <Input label="Privacy URL" value={form.privacyUrl || ''} onChange={(e) => setForm({ ...form, privacyUrl: e.target.value })} />
+        <Card title="Legal" className="lg:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Terms URL"
+              value={form.termsUrl || ''}
+              onChange={(e) => setForm({ ...form, termsUrl: e.target.value })}
+            />
+            <Input
+              label="Privacy URL"
+              value={form.privacyUrl || ''}
+              onChange={(e) => setForm({ ...form, privacyUrl: e.target.value })}
+            />
           </div>
         </Card>
       </div>
@@ -172,9 +192,11 @@ const Toggle = ({ label, description, checked, onChange }) => (
         checked ? 'bg-blue-600' : 'bg-gray-200'
       }`}
     >
-      <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
-        checked ? 'translate-x-5' : 'translate-x-0'
-      }`} />
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
     </button>
   </div>
 );

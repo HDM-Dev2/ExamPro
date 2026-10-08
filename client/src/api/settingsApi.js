@@ -5,13 +5,13 @@ export const getSettings = async () => {
   return response.data;
 };
 
-export const updateSettings = async (settingsData) => {
-  const response = await api.put('/settings', settingsData);
+export const updateSettings = async (data) => {
+  const response = await api.put('/settings', data);
   return response.data;
 };
 
-export const updateGradingSystem = async (gradingData) => {
-  const response = await api.put('/settings/grading-system', gradingData);
+export const updateGradingSystem = async (data) => {
+  const response = await api.put('/settings/grading-system', data);
   return response.data;
 };
 
@@ -27,10 +27,5 @@ export const addGrade = async (gradeData) => {
 
 export const deleteGrade = async (gradeId) => {
   const response = await api.delete(`/settings/grades/${gradeId}`);
-  return response.data;
-};
-
-export const uploadLogo = async (logoData) => {
-  const response = await api.post('/settings/logo', { logo: logoData });
   return response.data;
 };

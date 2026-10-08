@@ -15,6 +15,13 @@ const defaultCBCGrades = [
   { name: 'Below Expectation', minScore: 0, maxScore: 39.99, remark: 'BE' }
 ];
 
+const defaultMasteryGrades = [
+  { name: 'Mastery', minScore: 80, maxScore: 100, remark: 'Mastery' },
+  { name: 'Proficient', minScore: 70, maxScore: 79, remark: 'Proficient' },
+  { name: 'Competent', minScore: 50, maxScore: 69, remark: 'Competent' },
+  { name: 'Not Yet Competent', minScore: 0, maxScore: 49, remark: 'NYC' }
+];
+
 const getDefaultSettings = (adminId) => ({
   adminId,
   schoolName: 'My School',
@@ -31,10 +38,16 @@ const getDefaultSettings = (adminId) => ({
   logo: '',
   academicYear: new Date().getFullYear().toString(),
   term: 'Term 1',
-  passMark: 40,
+  passMark: 50,
   reportFooter: '',
-  gradingSystem: 'af',
-  grades: defaultAFGrades
+  gradingSystem: 'mastery',
+  grades: defaultMasteryGrades,
+  letterhead: '',
+  letterheadHeight: 60,
+  printMarginTop: 8,
+  printMarginBottom: 15,
+  paperSize: 'A4',
+  orientation: 'portrait'
 });
 
 const getSettings = async (req, res) => {
@@ -73,14 +86,17 @@ const updateSettings = async (req, res) => {
       academicYear,
       term,
       passMark,
-      reportFooter
+      reportFooter,
+      letterhead,
+      letterheadHeight,
+      printMarginTop,
+      printMarginBottom,
+      paperSize,
+      orientation
     } = req.body;
 
     let settings = await Settings.findOne({ adminId: tenantId });
-
-    if (!settings) {
-      settings = new Settings(getDefaultSettings(tenantId));
-    }
+    if (!settings) settings = new Settings(getDefaultSettings(tenantId));
 
     if (schoolName !== undefined) settings.schoolName = schoolName;
     if (schoolCode !== undefined) settings.schoolCode = schoolCode;
@@ -98,6 +114,12 @@ const updateSettings = async (req, res) => {
     if (term !== undefined) settings.term = term;
     if (passMark !== undefined) settings.passMark = passMark;
     if (reportFooter !== undefined) settings.reportFooter = reportFooter;
+    if (letterhead !== undefined) settings.letterhead = letterhead;
+    if (letterheadHeight !== undefined) settings.letterheadHeight = letterheadHeight;
+    if (printMarginTop !== undefined) settings.printMarginTop = printMarginTop;
+    if (printMarginBottom !== undefined) settings.printMarginBottom = printMarginBottom;
+    if (paperSize !== undefined) settings.paperSize = paperSize;
+    if (orientation !== undefined) settings.orientation = orientation;
 
     await settings.save();
     res.json(settings);
@@ -113,9 +135,7 @@ const updateGradingSystem = async (req, res) => {
     const { gradingSystem, passMark } = req.body;
 
     let settings = await Settings.findOne({ adminId: tenantId });
-    if (!settings) {
-      settings = new Settings(getDefaultSettings(tenantId));
-    }
+    if (!settings) settings = new Settings(getDefaultSettings(tenantId));
 
     if (gradingSystem) {
       settings.gradingSystem = gradingSystem;
@@ -124,6 +144,8 @@ const updateGradingSystem = async (req, res) => {
         settings.grades = defaultAFGrades;
       } else if (gradingSystem === 'cbc') {
         settings.grades = defaultCBCGrades;
+      } else if (gradingSystem === 'mastery') {
+        settings.grades = defaultMasteryGrades;
       }
     }
 
@@ -147,9 +169,7 @@ const updateGrades = async (req, res) => {
     }
 
     let settings = await Settings.findOne({ adminId: tenantId });
-    if (!settings) {
-      settings = new Settings(getDefaultSettings(tenantId));
-    }
+    if (!settings) settings = new Settings(getDefaultSettings(tenantId));
 
     settings.grades = grades;
     settings.gradingSystem = 'custom';
@@ -172,9 +192,7 @@ const addGrade = async (req, res) => {
     }
 
     let settings = await Settings.findOne({ adminId: tenantId });
-    if (!settings) {
-      settings = new Settings(getDefaultSettings(tenantId));
-    }
+    if (!settings) settings = new Settings(getDefaultSettings(tenantId));
 
     settings.grades.push({ name, minScore, maxScore, remark: remark || '' });
     settings.gradingSystem = 'custom';
@@ -207,36 +225,11 @@ const deleteGrade = async (req, res) => {
   }
 };
 
-const uploadLogo = async (req, res) => {
-  try {
-    const tenantId = req.tenantId;
-    const { logo } = req.body;
-
-    if (!logo) {
-      return res.status(400).json({ message: 'Logo data is required' });
-    }
-
-    let settings = await Settings.findOne({ adminId: tenantId });
-    if (!settings) {
-      settings = new Settings(getDefaultSettings(tenantId));
-    }
-
-    settings.logo = logo;
-    await settings.save();
-
-    res.json(settings);
-  } catch (error) {
-    console.error('Upload logo error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
 module.exports = {
   getSettings,
   updateSettings,
   updateGradingSystem,
   updateGrades,
   addGrade,
-  deleteGrade,
-  uploadLogo
+  deleteGrade
 };

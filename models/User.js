@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
     default: null,
     index: true
   },
+  departments: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department'
+  }],
   status: {
     type: String,
     enum: ['pending', 'active', 'rejected', 'suspended'],

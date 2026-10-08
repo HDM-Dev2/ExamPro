@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import * as staffApi from '../api/staffApi';
+import * as departmentApi from '../api/departmentApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -14,6 +15,7 @@ import toast from 'react-hot-toast';
 const StaffPage = () => {
   const { isOwner } = useAuth();
   const [staff, setStaff] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -26,11 +28,13 @@ const StaffPage = () => {
     fullName: '',
     email: '',
     phone: '',
+    departments: [],
   });
   const [editForm, setEditForm] = useState({
     fullName: '',
     email: '',
     phone: '',
+    departments: [],
   });
 
   useEffect(() => {
@@ -38,19 +42,29 @@ const StaffPage = () => {
       window.location.href = '/';
       return;
     }
-    fetchStaff();
+    loadAll();
   }, [isOwner]);
 
-  const fetchStaff = async () => {
+  const loadAll = async () => {
     setLoading(true);
     try {
-      const data = await staffApi.getStaff();
-      setStaff(data);
+      const [staffData, deptData] = await Promise.all([
+        staffApi.getStaff(),
+        departmentApi.getDepartments(),
+      ]);
+      setStaff(staffData);
+      setDepartments(deptData);
     } catch (error) {
-      toast.error('Failed to load staff');
+      toast.error('Failed to load');
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleDepartment = (list, deptId) => {
+    return list.includes(deptId)
+      ? list.filter((id) => id !== deptId)
+      : [...list, deptId];
   };
 
   const handleCreate = async (e) => {
@@ -70,8 +84,8 @@ const StaffPage = () => {
       }
 
       setShowCreateModal(false);
-      setCreateForm({ fullName: '', email: '', phone: '' });
-      fetchStaff();
+      setCreateForm({ fullName: '', email: '', phone: '', departments: [] });
+      loadAll();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to create staff');
     } finally {
@@ -88,7 +102,7 @@ const StaffPage = () => {
       toast.success('Staff updated');
       setShowEditModal(false);
       setEditingStaff(null);
-      fetchStaff();
+      loadAll();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update staff');
     } finally {
@@ -100,7 +114,7 @@ const StaffPage = () => {
     try {
       await staffApi.toggleStaffStatus(member._id);
       toast.success(`Staff ${member.isActive ? 'suspended' : 'activated'}`);
-      fetchStaff();
+      loadAll();
     } catch (error) {
       toast.error('Failed to toggle status');
     }
@@ -140,7 +154,7 @@ const StaffPage = () => {
       await staffApi.deleteStaff(deleteTarget._id);
       toast.success('Staff removed');
       setDeleteTarget(null);
-      fetchStaff();
+      loadAll();
     } catch (error) {
       toast.error('Failed to remove staff');
     }
@@ -149,7 +163,7 @@ const StaffPage = () => {
   if (!isOwner) return null;
   if (loading) return <Spinner size="lg" className="py-20" />;
 
-  const headers = ['Name', 'Email', 'Phone', 'Status', 'Last Login', 'Actions'];
+  const headers = ['Name', 'Email', 'Phone', 'Departments', 'Status', 'Last Login', 'Actions'];
 
   const renderRow = (member) => (
     <tr key={member._id}>
@@ -158,6 +172,19 @@ const StaffPage = () => {
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-gray-600">{member.email || '-'}</td>
       <td className="px-6 py-4 whitespace-nowrap text-gray-600">{member.phone || '-'}</td>
+      <td className="px-6 py-4">
+        {member.departments?.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {member.departments.map((d) => (
+              <Badge key={d._id} variant="info">
+                {d.name}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <span className="text-xs text-gray-400 italic">All departments</span>
+        )}
+      </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <Badge variant={member.isActive && member.status === 'active' ? 'success' : 'warning'}>
           {member.status || (member.isActive ? 'active' : 'inactive')}
@@ -176,6 +203,7 @@ const StaffPage = () => {
               fullName: member.fullName,
               email: member.email || '',
               phone: member.phone || '',
+              departments: member.departments?.map((d) => d._id) || [],
             });
             setShowEditModal(true);
           }}
@@ -206,12 +234,44 @@ const StaffPage = () => {
     </tr>
   );
 
+  const renderDepartmentPicker = (form, setForm) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Departments (assign one or more)
+      </label>
+      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-3 border border-gray-200 rounded-lg">
+        {departments.map((dept) => (
+          <label
+            key={dept._id}
+            className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded"
+          >
+            <input
+              type="checkbox"
+              checked={form.departments.includes(dept._id)}
+              onChange={() =>
+                setForm({
+                  ...form,
+                  departments: toggleDepartment(form.departments, dept._id),
+                })
+              }
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <span className="text-sm text-gray-700">{dept.name}</span>
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500 mt-1">
+        If none selected, staff can access all departments.
+      </p>
+    </div>
+  );
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Staff</h1>
-          <p className="text-gray-600 mt-1">Manage staff accounts for your school</p>
+          <p className="text-gray-600 mt-1">Manage staff accounts and their department access</p>
         </div>
         <Button onClick={() => setShowCreateModal(true)}>
           <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -251,16 +311,15 @@ const StaffPage = () => {
         />
       </Card>
 
-      {/* Create Staff Modal */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         title="Add Staff"
+        size="lg"
       >
         <form onSubmit={handleCreate} className="space-y-4">
           <Input
             label="Full Name"
-            placeholder="Jane Doe"
             value={createForm.fullName}
             onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })}
             required
@@ -268,17 +327,16 @@ const StaffPage = () => {
           <Input
             label="Email"
             type="email"
-            placeholder="jane@example.com"
             value={createForm.email}
             onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
             required
           />
           <Input
             label="Phone (optional)"
-            placeholder="+254..."
             value={createForm.phone}
             onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
           />
+          {renderDepartmentPicker(createForm, setCreateForm)}
           <p className="text-xs text-gray-500">
             A temporary password will be generated and emailed to the staff member.
           </p>
@@ -293,11 +351,11 @@ const StaffPage = () => {
         </form>
       </Modal>
 
-      {/* Edit Staff Modal */}
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         title="Edit Staff"
+        size="lg"
       >
         <form onSubmit={handleEdit} className="space-y-4">
           <Input
@@ -318,6 +376,7 @@ const StaffPage = () => {
             value={editForm.phone}
             onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
           />
+          {renderDepartmentPicker(editForm, setEditForm)}
           <div className="flex justify-end space-x-3">
             <Button variant="secondary" onClick={() => setShowEditModal(false)}>
               Cancel
@@ -329,7 +388,6 @@ const StaffPage = () => {
         </form>
       </Modal>
 
-      {/* Reset Password Modal */}
       <Modal
         isOpen={showResetPasswordModal}
         onClose={() => setShowResetPasswordModal(false)}
@@ -351,13 +409,12 @@ const StaffPage = () => {
         </div>
       </Modal>
 
-      {/* Delete Confirm */}
       <ConfirmDialog
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Remove Staff"
-        message={`Remove "${deleteTarget?.fullName}" from your school? This cannot be undone.`}
+        message={`Remove "${deleteTarget?.fullName}" from your school?`}
         confirmText="Remove"
         variant="danger"
       />

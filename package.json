@@ -11,6 +11,8 @@
     "admin": "node scripts/admin.js",
     "migrate": "node scripts/migrateToMultiTenant.js",
     "drop-indexes": "node scripts/dropOldIndexes.js",
+    "seed-departments": "node scripts/seedDepartments.js",
+    "pwa": "node scripts/generate-pwa-assets.js",
     "build": "cd client && npm run build && cd .. && node server.js"
   },
   "dependencies": {
@@ -24,7 +26,12 @@
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.0",
     "morgan": "^1.10.0",
-    "winston": "^3.8.2"
+    "multer": "^1.4.5-lts.1",
+    "pdfkit": "^0.14.0",
+    "winston": "^3.8.2",
+    "xlsx": "^0.18.5",
+    "cloudinary": "^1.41.0",
+    "multer-storage-cloudinary": "^4.0.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

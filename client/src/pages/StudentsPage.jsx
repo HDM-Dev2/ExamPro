@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useData } from '../context/DataContext';
 import * as studentApi from '../api/studentApi';
+import * as classApi from '../api/classApi';
+import * as departmentApi from '../api/departmentApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -9,60 +10,105 @@ import Modal from '../components/ui/Modal';
 import Table from '../components/ui/Table';
 import Badge from '../components/ui/Badge';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import ExportMenu from '../components/students/ExportMenu';
+import ImportModal from '../components/students/ImportModal';
 import toast from 'react-hot-toast';
 
 const StudentsPage = () => {
-  const { students, classes, fetchStudents, fetchClasses, loading } = useData();
+  const [students, setStudents] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [editingStudent, setEditingStudent] = useState(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [editing, setEditing] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedClass, setSelectedClass] = useState('');
-  const [formData, setFormData] = useState({
+  const [filters, setFilters] = useState({
+    departmentId: '',
+    classId: '',
+    search: '',
+  });
+  const [form, setForm] = useState({
     admissionNumber: '',
     fullName: '',
     classId: '',
-    email: '',
     phone: '',
   });
-  const [bulkData, setBulkData] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetchStudents();
-    fetchClasses();
+    loadDepartments();
   }, []);
 
-  const classOptions = classes.map((cls) => ({
-    value: cls._id,
-    label: cls.className,
+  useEffect(() => {
+    loadClasses();
+  }, [filters.departmentId]);
+
+  useEffect(() => {
+    loadStudents();
+  }, [filters.departmentId, filters.classId, filters.search]);
+
+  const loadDepartments = async () => {
+    try {
+      const data = await departmentApi.getDepartments();
+      setDepartments(data);
+    } catch (error) {
+      toast.error('Failed to load departments');
+    }
+  };
+
+  const loadClasses = async () => {
+    try {
+      const params = filters.departmentId ? { departmentId: filters.departmentId } : {};
+      const data = await classApi.getClasses(params);
+      setClasses(data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (filters.departmentId) params.departmentId = filters.departmentId;
+      if (filters.classId) params.classId = filters.classId;
+      if (filters.search) params.search = filters.search;
+
+      const data = await studentApi.getStudents(params);
+      setStudents(data);
+    } catch (error) {
+      toast.error('Failed to load students');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const departmentOptions = departments.map((d) => ({
+    value: d._id,
+    label: `${d.name}`,
   }));
 
-  const filteredStudents = students.filter((student) => {
-    const matchesSearch = student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (student.admissionNumber || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesClass = !selectedClass || student.classId?._id === selectedClass || student.classId === selectedClass;
-    return matchesSearch && matchesClass;
-  });
+  const classOptions = classes.map((c) => ({
+    value: c._id,
+    label: c.className,
+  }));
 
   const handleOpenModal = (student = null) => {
     if (student) {
-      setEditingStudent(student);
-      setFormData({
+      setEditing(student);
+      setForm({
         admissionNumber: student.admissionNumber || '',
         fullName: student.fullName,
         classId: student.classId?._id || student.classId || '',
-        email: student.email || '',
         phone: student.phone || '',
       });
     } else {
-      setEditingStudent(null);
-      setFormData({
+      setEditing(null);
+      setForm({
         admissionNumber: '',
         fullName: '',
-        classId: '',
-        email: '',
+        classId: filters.classId || '',
         phone: '',
       });
     }
@@ -74,47 +120,17 @@ const StudentsPage = () => {
     setSaving(true);
 
     try {
-      if (editingStudent) {
-        await studentApi.updateStudent(editingStudent._id, formData);
-        toast.success('Student updated successfully');
+      if (editing) {
+        await studentApi.updateStudent(editing._id, form);
+        toast.success('Student updated');
       } else {
-        await studentApi.createStudent(formData);
-        toast.success('Student created successfully');
+        await studentApi.createStudent(form);
+        toast.success('Student created');
       }
       setShowModal(false);
-      fetchStudents();
+      loadStudents();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Operation failed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleBulkSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const lines = bulkData.split('\n').filter(line => line.trim());
-      const students = lines.map(line => {
-        const [admissionNumber, fullName] = line.split(',').map(item => item.trim());
-        return { admissionNumber, fullName };
-      });
-
-      const result = await studentApi.createBulkStudents({
-        classId: formData.classId,
-        students,
-      });
-
-      toast.success(`${result.totalCreated} students created successfully`);
-      if (result.totalErrors > 0) {
-        toast.error(`${result.totalErrors} students failed to create`);
-      }
-      setShowBulkModal(false);
-      setBulkData('');
-      fetchStudents();
-    } catch (error) {
-      toast.error('Failed to create students');
+      toast.error(error.response?.data?.message || 'Failed');
     } finally {
       setSaving(false);
     }
@@ -122,42 +138,60 @@ const StudentsPage = () => {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
-
     try {
       await studentApi.deleteStudent(deleteTarget._id);
-      toast.success('Student deleted successfully');
+      toast.success('Student deleted');
       setDeleteTarget(null);
-      fetchStudents();
+      loadStudents();
     } catch (error) {
-      toast.error('Failed to delete student');
+      toast.error('Failed to delete');
     }
   };
 
-  const headers = ['Admission No.', 'Full Name', 'Class', 'Email', 'Phone', 'Status', 'Actions'];
+  const handleExport = async (format) => {
+    try {
+      const params = { format };
+      if (filters.departmentId) params.departmentId = filters.departmentId;
+      if (filters.classId) params.classId = filters.classId;
+      if (filters.search) params.search = filters.search;
 
-  const renderRow = (student) => (
+      await studentApi.exportStudents(params);
+      toast.success(`Exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      toast.error('Export failed');
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilters({ departmentId: '', classId: '', search: '' });
+  };
+
+  const headers = ['No.', 'Admission No', 'Full Name', 'Class', 'Department', 'Phone', 'Status', 'Actions'];
+
+  const renderRow = (student, index) => (
     <tr key={student._id}>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+      <td className="px-4 py-3 whitespace-nowrap text-gray-500 text-sm">{index + 1}</td>
+      <td className="px-4 py-3 whitespace-nowrap text-gray-600">
         {student.admissionNumber || '-'}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-4 py-3 whitespace-nowrap">
         <span className="font-medium text-gray-900">{student.fullName}</span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant="info">{student.classId?.className || 'No Class'}</Badge>
+      <td className="px-4 py-3 whitespace-nowrap">
+        <Badge variant="primary">{student.classId?.className || '-'}</Badge>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-        {student.email || '-'}
+      <td className="px-4 py-3 whitespace-nowrap text-gray-600 text-sm">
+        {student.classId?.departmentId?.name || '-'}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+      <td className="px-4 py-3 whitespace-nowrap text-gray-600">
         {student.phone || '-'}
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-4 py-3 whitespace-nowrap">
         <Badge variant={student.isActive ? 'success' : 'danger'}>
           {student.isActive ? 'Active' : 'Inactive'}
         </Badge>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap space-x-2">
+      <td className="px-4 py-3 whitespace-nowrap space-x-2">
         <Button variant="secondary" size="sm" onClick={() => handleOpenModal(student)}>
           Edit
         </Button>
@@ -173,11 +207,15 @@ const StudentsPage = () => {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Students</h1>
-          <p className="text-gray-600 mt-1">Manage your students</p>
+          <p className="text-gray-600 mt-1">Manage students across departments</p>
         </div>
         <div className="flex space-x-3">
-          <Button variant="secondary" onClick={() => setShowBulkModal(true)}>
-            Bulk Add
+          <ExportMenu onExport={handleExport} disabled={students.length === 0} />
+          <Button variant="secondary" onClick={() => setShowImportModal(true)}>
+            <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Import
           </Button>
           <Button onClick={() => handleOpenModal()}>
             <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -189,25 +227,41 @@ const StudentsPage = () => {
       </div>
 
       <Card className="mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Input
-            placeholder="Search by name or admission number"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Select
+            label="Department"
+            placeholder="All Departments"
+            options={departmentOptions}
+            value={filters.departmentId}
+            onChange={(e) =>
+              setFilters({ ...filters, departmentId: e.target.value, classId: '' })
+            }
           />
           <Select
-            placeholder="Filter by class"
+            label="Class"
+            placeholder="All Classes"
             options={classOptions}
-            value={selectedClass}
-            onChange={(e) => setSelectedClass(e.target.value)}
+            value={filters.classId}
+            onChange={(e) => setFilters({ ...filters, classId: e.target.value })}
           />
+          <Input
+            label="Search"
+            placeholder="Name or admission no..."
+            value={filters.search}
+            onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+          />
+          <div className="flex items-end">
+            <Button variant="secondary" onClick={handleClearFilters} className="w-full">
+              Clear Filters
+            </Button>
+          </div>
         </div>
       </Card>
 
       <Card>
         <Table
           headers={headers}
-          data={filteredStudents}
+          data={students}
           renderRow={renderRow}
           loading={loading}
           emptyMessage="No students found"
@@ -217,101 +271,57 @@ const StudentsPage = () => {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editingStudent ? 'Edit Student' : 'Add Student'}
+        title={editing ? 'Edit Student' : 'Add Student'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="Admission Number"
-            placeholder="Enter admission number"
-            value={formData.admissionNumber}
-            onChange={(e) => setFormData({ ...formData, admissionNumber: e.target.value })}
+            value={form.admissionNumber}
+            onChange={(e) => setForm({ ...form, admissionNumber: e.target.value })}
           />
           <Input
             label="Full Name"
-            placeholder="Enter full name"
-            value={formData.fullName}
-            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+            value={form.fullName}
+            onChange={(e) => setForm({ ...form, fullName: e.target.value })}
             required
           />
           <Select
             label="Class"
             placeholder="Select class"
             options={classOptions}
-            value={formData.classId}
-            onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
+            value={form.classId}
+            onChange={(e) => setForm({ ...form, classId: e.target.value })}
             required
           />
           <Input
-            label="Email"
-            type="email"
-            placeholder="Enter email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          />
-          <Input
-            label="Phone"
-            placeholder="Enter phone number"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            label="Phone (optional)"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
           <div className="flex justify-end space-x-3">
             <Button variant="secondary" onClick={() => setShowModal(false)}>
               Cancel
             </Button>
             <Button type="submit" isLoading={saving}>
-              {editingStudent ? 'Update' : 'Create'}
+              {editing ? 'Update' : 'Create'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      <Modal
-        isOpen={showBulkModal}
-        onClose={() => setShowBulkModal(false)}
-        title="Bulk Add Students"
-      >
-        <form onSubmit={handleBulkSubmit} className="space-y-4">
-          <Select
-            label="Class"
-            placeholder="Select class"
-            options={classOptions}
-            value={formData.classId}
-            onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
-            required
-          />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Students List (one per line)
-            </label>
-            <textarea
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows="6"
-              placeholder={'ADM001, John Doe\nADM002, Jane Smith\nADM003, Bob Johnson'}
-              value={bulkData}
-              onChange={(e) => setBulkData(e.target.value)}
-              required
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Format: AdmissionNumber, FullName (one per line)
-            </p>
-          </div>
-          <div className="flex justify-end space-x-3">
-            <Button variant="secondary" onClick={() => setShowBulkModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={saving}>
-              Add Students
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      <ImportModal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        classes={classes}
+        onImported={loadStudents}
+      />
 
       <ConfirmDialog
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDelete}
         title="Delete Student"
-        message={`Are you sure you want to delete "${deleteTarget?.fullName}"?`}
+        message={`Delete "${deleteTarget?.fullName}"?`}
         confirmText="Delete"
         variant="danger"
       />
@@ -320,3 +330,4 @@ const StudentsPage = () => {
 };
 
 export default StudentsPage;
+

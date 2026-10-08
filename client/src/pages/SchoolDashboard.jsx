@@ -7,7 +7,7 @@ import Card from '../components/ui/Card';
 import Spinner from '../components/ui/Spinner';
 
 const SchoolDashboard = () => {
-  const { classes, students, courses, fetchClasses, fetchStudents, fetchCourses, loading } = useData();
+  const { departments, classes, students, fetchDepartments, fetchClasses, fetchStudents, loading } = useData();
   const { settings } = useSettings();
   const { isOwner } = useAuth();
   const navigate = useNavigate();
@@ -19,15 +19,15 @@ const SchoolDashboard = () => {
 
   const loadDashboardData = async () => {
     try {
-      const [classesData, studentsData, coursesData] = await Promise.all([
+      const [departmentsData, classesData, studentsData] = await Promise.all([
+        fetchDepartments(),
         fetchClasses(),
         fetchStudents(),
-        fetchCourses(),
       ]);
       setStats({
+        totalDepartments: departmentsData.length,
         totalClasses: classesData.length,
         totalStudents: studentsData.length,
-        totalCourses: coursesData.length,
       });
     } catch (error) {
       console.error('Failed to load dashboard data');
@@ -40,18 +40,29 @@ const SchoolDashboard = () => {
 
   const statCards = [
     {
-      title: 'Total Classes',
-      value: stats?.totalClasses || 0,
+      title: 'Departments',
+      value: stats?.totalDepartments || 0,
       icon: (
         <svg className="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
         </svg>
       ),
-      path: '/classes',
+      path: '/departments',
       color: 'bg-blue-50',
     },
     {
-      title: 'Total Students',
+      title: 'Classes',
+      value: stats?.totalClasses || 0,
+      icon: (
+        <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+        </svg>
+      ),
+      path: '/classes',
+      color: 'bg-purple-50',
+    },
+    {
+      title: 'Students',
       value: stats?.totalStudents || 0,
       icon: (
         <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -61,32 +72,7 @@ const SchoolDashboard = () => {
       path: '/students',
       color: 'bg-green-50',
     },
-    {
-      title: 'Total Courses',
-      value: stats?.totalCourses || 0,
-      icon: (
-        <svg className="h-8 w-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-        </svg>
-      ),
-      path: '/courses',
-      color: 'bg-purple-50',
-    },
   ];
-
-  if (isOwner) {
-    statCards.push({
-      title: 'Staff',
-      value: 0,
-      icon: (
-        <svg className="h-8 w-8 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-      path: '/staff',
-      color: 'bg-orange-50',
-    });
-  }
 
   return (
     <div>
@@ -99,7 +85,7 @@ const SchoolDashboard = () => {
         </p>
       </div>
 
-      <div className={`grid grid-cols-1 md:grid-cols-2 ${isOwner ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6 mb-8`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         {statCards.map((stat) => (
           <button
             key={stat.title}
@@ -137,7 +123,7 @@ const SchoolDashboard = () => {
               >
                 <div>
                   <p className="font-medium text-gray-900 text-sm">{cls.className}</p>
-                  <p className="text-xs text-gray-500">{cls.description || 'No description'}</p>
+                  <p className="text-xs text-gray-500">{cls.departmentId?.name || ''}</p>
                 </div>
                 <span className="text-xs text-gray-400">
                   {cls.studentCount || 0} students
@@ -147,22 +133,19 @@ const SchoolDashboard = () => {
           )}
         </Card>
 
-        <Card title="Recent Courses" subtitle="Latest courses added">
-          {courses.length === 0 ? (
-            <p className="text-gray-400 text-center py-4 text-sm">No courses yet</p>
+        <Card title="Departments" subtitle="All departments">
+          {departments.length === 0 ? (
+            <p className="text-gray-400 text-center py-4 text-sm">No departments yet</p>
           ) : (
-            courses.slice(0, 5).map((course) => (
+            departments.slice(0, 5).map((dept) => (
               <div
-                key={course._id}
+                key={dept._id}
                 className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
               >
                 <div>
-                  <p className="font-medium text-gray-900 text-sm">{course.courseName}</p>
-                  <p className="text-xs text-gray-500">{course.courseCode}</p>
+                  <p className="font-medium text-gray-900 text-sm">{dept.name}</p>
+                  <p className="text-xs text-gray-500">Code: {dept.code}</p>
                 </div>
-                <span className="text-xs text-gray-400">
-                  {course.classId?.className || ''}
-                </span>
               </div>
             ))
           )}

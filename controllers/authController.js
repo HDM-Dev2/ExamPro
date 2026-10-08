@@ -148,9 +148,9 @@ const verifyAdminHash = async (req, res) => {
 
 const getAdminInfo = async (req, res) => {
   try {
-    const admin = await User.findById(req.userId).select(
-      '-password -adminHash -resetToken -resetTokenExpires'
-    );
+    const admin = await User.findById(req.userId)
+      .select('-password -adminHash -resetToken -resetTokenExpires')
+      .populate('departments', 'name code');
     if (!admin) {
       return res.status(404).json({ message: 'Admin not found' });
     }
@@ -233,6 +233,7 @@ const loginTeacher = async (req, res) => {
         fullName: user.fullName,
         role: user.role,
         parentAdminId: user.parentAdminId || null,
+        departments: user.departments || [],
         mustChangePassword: user.mustChangePassword || false
       }
     });
@@ -854,6 +855,7 @@ const getStaff = async (req, res) => {
       role: 'staff'
     })
       .select('-password -adminHash -resetToken -resetTokenExpires')
+      .populate('departments', 'name code')
       .sort({ createdAt: -1 });
 
     res.json(staff);
@@ -865,7 +867,7 @@ const getStaff = async (req, res) => {
 
 const createStaff = async (req, res) => {
   try {
-    const { fullName, email, phone, password } = req.body;
+    const { fullName, email, phone, password, departments } = req.body;
 
     if (!fullName || !email) {
       return res.status(400).json({ message: 'Full name and email are required' });
@@ -897,6 +899,7 @@ const createStaff = async (req, res) => {
       phone: phone || '',
       role: 'staff',
       parentAdminId: req.userId,
+      departments: Array.isArray(departments) ? departments : [],
       status: 'active',
       isHiddenAdmin: false,
       registrationSource: 'admin',
@@ -936,6 +939,7 @@ const createStaff = async (req, res) => {
         email: staff.email,
         fullName: staff.fullName,
         role: staff.role,
+        departments: staff.departments,
         status: staff.status
       },
       emailSent,
@@ -950,7 +954,7 @@ const createStaff = async (req, res) => {
 
 const updateStaff = async (req, res) => {
   try {
-    const { fullName, email, phone } = req.body;
+    const { fullName, email, phone, departments } = req.body;
 
     const staff = await User.findOne({
       _id: req.params.id,
@@ -980,18 +984,17 @@ const updateStaff = async (req, res) => {
 
     if (fullName) staff.fullName = fullName.trim();
     if (phone !== undefined) staff.phone = phone;
+    if (Array.isArray(departments)) staff.departments = departments;
 
     await staff.save();
 
+    const updated = await User.findById(staff._id)
+      .select('-password -adminHash')
+      .populate('departments', 'name code');
+
     res.json({
       message: 'Staff updated',
-      staff: {
-        id: staff._id,
-        email: staff.email,
-        fullName: staff.fullName,
-        phone: staff.phone,
-        role: staff.role
-      }
+      staff: updated
     });
   } catch (error) {
     console.error('Update staff error:', error);

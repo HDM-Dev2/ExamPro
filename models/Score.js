@@ -12,24 +12,38 @@ const scoreSchema = new mongoose.Schema({
     ref: 'Student',
     required: true
   },
-  courseId: {
+  classId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course',
+    ref: 'Class',
     required: true
   },
   unitId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true
   },
-  assessmentType: {
-    type: String,
-    enum: ['assignment', 'cat', 'exam'],
+  formativeNumber: {
+    type: Number,
+    enum: [1, 2, 3, 4],
     required: true
   },
   score: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
+    max: 100
+  },
+  locked: {
+    type: Boolean,
+    default: false
+  },
+  lockedAt: {
+    type: Date,
+    default: null
+  },
+  lockedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   },
   createdAt: {
     type: Date,
@@ -42,7 +56,7 @@ const scoreSchema = new mongoose.Schema({
 });
 
 scoreSchema.index(
-  { studentId: 1, courseId: 1, unitId: 1, assessmentType: 1 },
+  { studentId: 1, classId: 1, unitId: 1, formativeNumber: 1 },
   { unique: true }
 );
 

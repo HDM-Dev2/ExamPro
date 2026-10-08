@@ -9,6 +9,5 @@ router.put('/grading-system', adminAuth, settingsController.updateGradingSystem)
 router.put('/grades', adminAuth, settingsController.updateGrades);
 router.post('/grades', adminAuth, settingsController.addGrade);
 router.delete('/grades/:gradeId', adminAuth, settingsController.deleteGrade);
-router.post('/logo', adminAuth, settingsController.uploadLogo);
 
 module.exports = router;

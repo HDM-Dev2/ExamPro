@@ -34,3 +34,42 @@ export const deleteStudent = async (id) => {
   const response = await api.delete(`/students/${id}`);
   return response.data;
 };
+
+export const exportStudents = async (params) => {
+  const response = await api.get('/students/export', {
+    params,
+    responseType: 'blob',
+  });
+
+  const format = params.format || 'csv';
+  const mimeTypes = {
+    csv: 'text/csv',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pdf: 'application/pdf',
+  };
+
+  const blob = new Blob([response.data], { type: mimeTypes[format] || 'application/octet-stream' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+
+  const date = new Date().toISOString().split('T')[0];
+  link.download = `students-${date}.${format}`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
+
+  return true;
+};
+
+export const importStudents = async (classId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('classId', classId);
+
+  const response = await api.post('/students/import', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};

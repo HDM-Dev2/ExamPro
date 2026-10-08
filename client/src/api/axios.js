@@ -37,7 +37,6 @@ api.interceptors.response.use(
 
     if (error.response && error.response.status === 403) {
       const code = error.response.data?.code;
-
       if (code === 'MUST_CHANGE_PASSWORD') {
         if (window.location.pathname !== '/change-password') {
           window.location.href = '/change-password';
