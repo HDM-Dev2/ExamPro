@@ -69,19 +69,31 @@ const MarksUnitPage = () => {
   };
 
   const handleChange = (studentId, formativeNumber, value) => {
+    const cleaned = String(value).replace(/[^0-9]/g, '');
+
+    if (cleaned === '') {
+      const key = `${studentId}_${formativeNumber}`;
+      setScores((prev) => ({
+        ...prev,
+        [key]: { ...(prev[key] || {}), score: '' },
+      }));
+      return;
+    }
+
+    const num = Number(cleaned);
+    if (isNaN(num) || num < 0 || num > 100) return;
+
     const key = `${studentId}_${formativeNumber}`;
     setScores((prev) => ({
       ...prev,
-      [key]: {
-        ...(prev[key] || {}),
-        score: value,
-      },
+      [key]: { ...(prev[key] || {}), score: num },
     }));
   };
 
   const getScore = (studentId, formativeNumber) => {
     const key = `${studentId}_${formativeNumber}`;
-    return scores[key]?.score ?? '';
+    const val = scores[key]?.score;
+    return val === undefined || val === null ? '' : val;
   };
 
   const isLocked = (studentId, formativeNumber) => {
@@ -255,12 +267,13 @@ const MarksUnitPage = () => {
                           <td key={n} className="px-4 py-3">
                             <div className="flex items-center space-x-1">
                               <input
-                                type="number"
-                                min="0"
-                                max="100"
-                                step="1"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                autoComplete="off"
                                 disabled={locked}
-                                className={`w-20 px-2 py-1 border rounded-md text-sm ${
+                                placeholder="--"
+                                className={`w-16 px-2 py-1 border rounded-md text-sm text-center ${
                                   locked
                                     ? 'bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed'
                                     : 'border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500'

@@ -82,19 +82,25 @@ const ClassesPage = () => {
     setForm({
       className: cls.className,
       departmentId: cls.departmentId?._id || cls.departmentId || '',
-      level: cls.level || '',
+      level: cls.level ? String(cls.level) : '',
     });
     setShowModal(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!form.level) {
+      toast.error('Please select a level');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
         className: form.className,
         departmentId: form.departmentId,
-        level: form.level ? Number(form.level) : null,
+        level: Number(form.level),
       };
 
       if (editing) {
@@ -133,9 +139,7 @@ const ClassesPage = () => {
         <span className="font-medium text-gray-900">{cls.className}</span>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <Badge variant="primary">
-          {cls.departmentId?.name || '-'}
-        </Badge>
+        <Badge variant="primary">{cls.departmentId?.name || '-'}</Badge>
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-gray-600">
         {cls.level ? `Level ${cls.level}` : '-'}
@@ -222,11 +226,12 @@ const ClassesPage = () => {
             required
           />
           <Select
-            label="Level (optional)"
+            label="Level"
             placeholder="Select level"
             options={levelOptions}
             value={form.level}
             onChange={(e) => setForm({ ...form, level: e.target.value })}
+            required
           />
           <div className="flex justify-end space-x-3">
             <Button variant="secondary" onClick={() => setShowModal(false)}>
